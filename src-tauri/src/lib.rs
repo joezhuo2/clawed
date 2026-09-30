@@ -5,3 +5,5 @@ pub mod transcript;
 pub mod usage;
 pub mod installer;
 pub mod settings;
+pub mod ipc;
+pub mod state;
