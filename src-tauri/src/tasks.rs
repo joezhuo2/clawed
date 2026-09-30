@@ -24,21 +24,34 @@ pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
     tauri::async_runtime::spawn(liveness(shared.clone()));
     tauri::async_runtime::spawn(context(shared.clone()));
     tauri::async_runtime::spawn(usage(shared.clone()));
+    tauri::async_runtime::spawn(system(app.clone(), shared.clone()));
     tauri::async_runtime::spawn(idle_teardown(app, shared));
 }
 
-/// Debug only: reports the island's visible elements back via `debug_log`.
-const DEBUG_DUMP: &str = r#"setTimeout(() => {
-  const els = [...document.querySelectorAll('.island *')].filter(e => {
-    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).opacity !== '0';
-  }).slice(0, 25).map(e => {
-    const r = e.getBoundingClientRect(); const c = e.className.baseVal ?? e.className;
-    return `${e.tagName}.${c} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)} bg=${getComputedStyle(e).backgroundColor}`;
-  });
-  const at = document.elementsFromPoint(50, 24).map(e => e.tagName + '.' + (e.className.baseVal ?? e.className)).join(' > ');
-  const extra = `dots=${document.querySelectorAll('.dot').length} at(50,24)=${at} dpr=${devicePixelRatio} vw=${innerWidth}x${innerHeight}`;
-  window.__TAURI_INTERNALS__.invoke('debug_log', { msg: extra + '\n' + els.join('\n') });
-}, 500)"#;
+const SYSTEM_INTERVAL: Duration = Duration::from_millis(1500);
+
+/// Samples CPU/RAM/GPU only while the island is expanded.
+async fn system(app: AppHandle, shared: Arc<Shared>) {
+    let mut sampler: Option<crate::system::Sampler> = None;
+    loop {
+        if !shared.expanded.load(Ordering::Relaxed) {
+            // Drop the sampler (and its PDH query) while collapsed.
+            sampler = None;
+            shared.expanded_changed.notified().await;
+            continue;
+        }
+        let s = sampler.get_or_insert_with(crate::system::Sampler::new);
+        let thresholds = lock(&shared.settings).thresholds;
+        // CPU usage needs an interval between refreshes.
+        tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
+        let view = s.sample(thresholds);
+        let _ = app.emit_to(crate::window::LABEL, "system", &view);
+        tokio::select! {
+            _ = tokio::time::sleep(SYSTEM_INTERVAL) => {}
+            _ = shared.expanded_changed.notified() => {}
+        }
+    }
+}
 
 /// Coalesces `dirty` notifications: at most one snapshot per 100 ms.
 async fn emitter(app: AppHandle, shared: Arc<Shared>) {
@@ -47,9 +60,6 @@ async fn emitter(app: AppHandle, shared: Arc<Shared>) {
         let snap = shared.snapshot();
         if std::env::var_os("CLAWED_DEBUG").is_some() {
             eprintln!("[clawed] state {}", serde_json::to_string(&snap).unwrap_or_default());
-            if let Some(w) = crate::window::get(&app) {
-                let _ = w.eval(DEBUG_DUMP);
-            }
         }
         let _ = app.emit_to(crate::window::LABEL, "state", &snap);
         crate::tray::refresh(&app, &shared, &snap);

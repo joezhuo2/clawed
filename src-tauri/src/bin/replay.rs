@@ -20,6 +20,22 @@ fn send(msg: &HookMsg) -> std::io::Result<Stream> {
     Ok(conn)
 }
 
+/// Moves rate limit reset times so they stay in the future relative to the
+/// replay, as they were when the fixture was recorded.
+fn shift_resets(raw: &Value, recorded_ms: Option<u64>, now_ms: u64) -> Value {
+    let mut out = raw.clone();
+    let Some(recorded) = recorded_ms else { return out };
+    let delta = (now_ms / 1000) as i64 - (recorded / 1000) as i64;
+    if let Some(limits) = out.get_mut("rate_limits").and_then(Value::as_object_mut) {
+        for w in limits.values_mut() {
+            if let Some(r) = w.get("resets_at").and_then(Value::as_i64) {
+                w["resets_at"] = Value::from(r + delta);
+            }
+        }
+    }
+    out
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(path) = args.iter().find(|a| !a.starts_with("--") && a.parse::<f64>().is_err()) else {
@@ -46,6 +62,8 @@ fn main() {
         prev_ts = v.get("ts").and_then(Value::as_u64).or(prev_ts);
 
         let now = now_ms();
+        let shifted = shift_resets(raw, v.get("ts").and_then(Value::as_u64), now);
+        let raw = &shifted;
         let msg = if let Some(ev) = strip_event(raw, ppid, now) {
             if ev.kind == "PermissionRequest" {
                 HookMsg::Approval { id: format!("replay-{i}"), event: ev }

@@ -218,7 +218,7 @@ pub fn icon(v: Variant) -> Image<'static> {
                 for sx in 0..4 {
                     let (x, y) = (px as f64 + (sx as f64 + 0.5) / 4.0, py as f64 + (sy as f64 + 0.5) / 4.0);
                     let d = dist(x, y);
-                    let mut hit = if fill { d <= 0.0 } else { d <= 0.0 && d >= -2.5 };
+                    let mut hit = if fill { d <= 0.0 } else { (-2.5..=0.0).contains(&d) };
                     // Approval on macOS: punch a dot so it differs from Working.
                     if template && v == Variant::Approval {
                         let (ddx, ddy) = (x - 22.0, y - cy);

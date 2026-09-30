@@ -56,6 +56,14 @@ export interface UsageView {
   source: "exact" | "estimated" | "unknown";
 }
 
+export interface SystemView {
+  cpu: Ring | null;
+  ram: Ring | null;
+  gpu: Ring | null;
+  ram_used_gb: number;
+  ram_total_gb: number;
+}
+
 export interface Snapshot {
   sessions: SessionView[];
   approvals: ApprovalView[];

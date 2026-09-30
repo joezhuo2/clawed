@@ -20,6 +20,9 @@ pub fn get_state(shared: Shr) -> Snapshot {
 
 #[tauri::command]
 pub fn decide(shared: Shr, id: String, allow: bool) -> bool {
+    if std::env::var_os("CLAWED_DEBUG").is_some() {
+        eprintln!("[clawed] decide {id} allow={allow}");
+    }
     let behavior = if allow { Behavior::Allow } else { Behavior::Deny };
     let session = lock(&shared.approvals).decide(&id, behavior);
     if let Some(s) = &session {
@@ -37,22 +40,17 @@ pub async fn set_island_size(app: AppHandle, width: f64, height: f64) -> Result<
     crate::window::set_size(&app, width, height).map_err(|e| e.to_string())
 }
 
+/// Called when the island expands (true) or finishes collapsing (false).
 #[tauri::command]
-pub async fn set_interactive(app: AppHandle, interactive: bool) -> Result<(), String> {
+pub async fn set_interactive(app: AppHandle, shared: Shr<'_>, interactive: bool) -> Result<(), String> {
+    shared.expanded.store(interactive, std::sync::atomic::Ordering::Relaxed);
+    shared.expanded_changed.notify_one();
     crate::window::set_interactive(&app, interactive).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn open_settings(app: AppHandle) {
     crate::window::open_settings(&app);
-}
-
-/// Frontend diagnostics, printed only with `CLAWED_DEBUG` set.
-#[tauri::command]
-pub fn debug_log(msg: String) {
-    if std::env::var_os("CLAWED_DEBUG").is_some() {
-        eprintln!("[clawed:ui] {msg}");
-    }
 }
 
 #[tauri::command]

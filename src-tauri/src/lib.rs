@@ -10,6 +10,7 @@ pub mod platform;
 pub mod settings;
 pub mod state;
 pub mod store;
+pub mod system;
 pub mod tailer;
 pub mod tasks;
 pub mod transcript;
@@ -79,7 +80,6 @@ pub fn run() {
             commands::set_island_size,
             commands::set_interactive,
             commands::open_settings,
-            commands::debug_log,
             commands::get_settings,
             commands::save_settings,
             commands::installer_status,

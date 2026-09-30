@@ -1,8 +1,8 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { onMount } from "svelte";
-  import type { Snapshot } from "../lib/types";
+  import { onMount, untrack } from "svelte";
+  import type { Snapshot, SystemView } from "../lib/types";
   import ApprovalCard from "./ApprovalCard.svelte";
   import Header from "./Header.svelte";
   import SessionRow from "./SessionRow.svelte";
@@ -13,9 +13,9 @@
   const COLLAPSED_H = 48;
   const EXPANDED_W = 420;
   const MAX_H = 640;
-  const LEAVE_GRACE_MS = 300;
 
   let snap = $state<Snapshot | null>(null);
+  let system = $state<SystemView | null>(null);
   let hovered = $state(false);
   let expanded = $state(false);
   let showPanel = $state(false);
@@ -34,7 +34,6 @@
   const wantOpen = $derived(hovered || pinned);
 
   let generation = 0;
-  let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function open() {
     const gen = ++generation;
@@ -42,7 +41,10 @@
     if (expanded) return;
     await invoke("set_interactive", { interactive: true });
     await invoke("set_island_size", { width: EXPANDED_W, height: MAX_H });
-    if (gen === generation) expanded = true;
+    if (gen !== generation) return;
+    // The cursor may have left while the window was growing.
+    if (wantOpen) expanded = true;
+    else close();
   }
 
   function close() {
@@ -74,14 +76,11 @@
     }, 450);
   }
 
+  // Collapse starts as soon as the cursor leaves; re-entering mid-collapse
+  // reverses the transition.
   $effect(() => {
-    if (wantOpen) {
-      clearTimeout(graceTimer);
-      open();
-    } else if (expanded || showPanel) {
-      clearTimeout(graceTimer);
-      graceTimer = setTimeout(close, LEAVE_GRACE_MS);
-    }
+    if (wantOpen) open();
+    else if (untrack(() => expanded)) close();
   });
 
   // Fit the window to the expanded content.
@@ -121,6 +120,7 @@
     const unlisten = [
       listen<Snapshot>("state", (e) => (snap = e.payload)),
       listen<boolean>("hover", (e) => (hovered = e.payload)),
+      listen<SystemView>("system", (e) => (system = e.payload)),
     ];
     return () => unlisten.forEach((p) => p.then((f) => f()));
   });
@@ -152,7 +152,7 @@
         <div class="empty">No Claude Code sessions</div>
       {/each}
 
-      <UsageFooter usage={snap.usage} {now} />
+      <UsageFooter usage={snap.usage} {system} {now} />
       {#if snap.paused}<div class="paused">Approvals paused</div>{/if}
     </div>
   {/if}

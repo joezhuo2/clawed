@@ -149,12 +149,16 @@ Single instance via `tauri-plugin-single-instance`.
 Svelte 5, no component libraries. `theme.css` holds every color and dimension as CSS variables.
 
 - Collapsed pill (black, fully rounded): one dot per session colored by state, step bar with `3/7` for the most recently active working session (hidden when none), two concentric mini rings (outer 7 d, inner 5 h).
-- Expanded: rows with repo, state, current step, todo bar, context meter (flashes on compaction warning), elapsed time; full rings with percent, reset countdown, and an "estimated" label when applicable.
+- Expanded: rows with repo, state, current step, todo bar, context meter (flashes on compaction warning), elapsed time; full rings with percent, reset countdown, and an "estimated" label when applicable; a second row of CPU / RAM / GPU rings in the same style.
 - Approval card: tool, summary, Allow / Deny. Auto-expands, stays open until answered or released, queue shown as `1 of 3`.
 - WaitingInput sessions also auto-expand, showing the notification message.
-- Transitions: transform + opacity only; 300 ms leave grace; re-enter reverses.
+- Transitions: the shape animates with `clip-path` (compositor-friendly, no layout), content fades with opacity. Collapse starts immediately when the cursor leaves; re-entering mid-collapse reverses.
 - No timers while collapsed. Elapsed and countdown tick once per second only while expanded.
 - State colors: working blue, waiting amber, approval violet, done green, error red, stale gray.
+
+## System meters
+
+CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows via PDH `\GPU Engine(*)\Utilization Percentage`, summed per engine type and taking the busiest type (Task Manager's method). macOS GPU is not implemented in v1 and shows `--`. Sampling runs every 1.5 s only while the island is expanded; the sampler and its PDH query are dropped on collapse. Emitted as a separate `system` event so the tray is never rebuilt for it.
 
 ## Testing
 
@@ -173,4 +177,4 @@ Svelte 5, no component libraries. `theme.css` holds every color and dimension as
 
 ## Out of scope
 
-Git gate, style lint, GPU meter, recaps, remote sessions, integrations, sounds, branding.
+Git gate, style lint, recaps, remote sessions, integrations, sounds, branding.

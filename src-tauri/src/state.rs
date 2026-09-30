@@ -31,6 +31,9 @@ pub struct Shared {
     /// Last time any session was active or an approval was pending.
     pub last_active: AtomicU64,
     pub autostarted: AtomicBool,
+    /// Island is expanded: system meters are sampled only then.
+    pub expanded: AtomicBool,
+    pub expanded_changed: Notify,
 }
 
 /// Locks a mutex, recovering from poisoning (a panicked holder only ever
