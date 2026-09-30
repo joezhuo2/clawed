@@ -17,6 +17,18 @@ const HOVER_POLL: Duration = Duration::from_millis(80);
 
 static CREATING: AtomicBool = AtomicBool::new(false);
 
+/// WebView2 flags. Tauri's defaults are kept; `CLAWED_WEBVIEW_ARGS` replaces
+/// the whole string (for memory experiments). All webviews must share them.
+#[cfg(windows)]
+fn browser_args() -> String {
+    std::env::var("CLAWED_WEBVIEW_ARGS").unwrap_or_else(|_| DEFAULT_BROWSER_ARGS.to_string())
+}
+
+#[cfg(windows)]
+// Software compositing: the GPU process was ~120 MB private for a small,
+// mostly static island. Measured in docs/memory.md.
+const DEFAULT_BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu";
+
 pub fn get(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(LABEL)
 }
@@ -35,7 +47,10 @@ pub fn ensure(app: &AppHandle) {
 
 fn create(app: &AppHandle) -> tauri::Result<()> {
     let (w, h) = COLLAPSED;
-    let win = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()))
+    let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()));
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(&browser_args());
+    let win = builder
         .title("clawed")
         .inner_size(w, h)
         .decorations(false)
@@ -124,7 +139,10 @@ pub fn open_settings(app: &AppHandle) {
         let _ = w.set_focus();
         return;
     }
-    let built = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("settings.html".into()))
+    let builder = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("settings.html".into()));
+    #[cfg(windows)]
+    let builder = builder.additional_browser_args(&browser_args());
+    let built = builder
         .title("clawed settings")
         .inner_size(620.0, 720.0)
         .min_inner_size(480.0, 480.0)

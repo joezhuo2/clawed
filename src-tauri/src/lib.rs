@@ -92,7 +92,8 @@ pub fn run() {
             let handle = app.handle().clone();
             // Dev builds never register themselves as a login item.
             let first_run = !lock(&shared.settings).first_run_done;
-            if first_run && !cfg!(debug_assertions) {
+            let skip = cfg!(debug_assertions) || std::env::var_os("CLAWED_NO_AUTOSTART").is_some();
+            if first_run && !skip {
                 if let Err(e) = handle.autolaunch().enable() {
                     log::warn!("enable autostart: {e}");
                 }

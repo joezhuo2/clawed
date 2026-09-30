@@ -3,3 +3,4 @@ node_modules/
 /ui/dist
 *.log
 fixtures/captured-*.jsonl
+/src-tauri/binaries

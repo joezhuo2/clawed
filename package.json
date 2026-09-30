@@ -8,7 +8,8 @@
     "build": "vite build --config ui/vite.config.ts",
     "check": "svelte-check --tsconfig ui/tsconfig.json",
     "test": "vitest run --config ui/vite.config.ts",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:hook": "node scripts/build-hook.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
