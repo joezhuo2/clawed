@@ -6,11 +6,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clawed_proto::now_ms;
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter};
 
 use crate::state::{lock, Shared};
-use crate::transcript::window_for_model;
+use crate::transcript::{effective_window, window_for_model};
 
 /// Max emission rate to the island (10 Hz).
 const EMIT_INTERVAL: Duration = Duration::from_millis(100);
@@ -28,11 +27,30 @@ pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
     tauri::async_runtime::spawn(idle_teardown(app, shared));
 }
 
+/// Debug only: reports the island's visible elements back via `debug_log`.
+const DEBUG_DUMP: &str = r#"setTimeout(() => {
+  const els = [...document.querySelectorAll('.island *')].filter(e => {
+    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).opacity !== '0';
+  }).slice(0, 25).map(e => {
+    const r = e.getBoundingClientRect(); const c = e.className.baseVal ?? e.className;
+    return `${e.tagName}.${c} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)} bg=${getComputedStyle(e).backgroundColor}`;
+  });
+  const at = document.elementsFromPoint(50, 24).map(e => e.tagName + '.' + (e.className.baseVal ?? e.className)).join(' > ');
+  const extra = `dots=${document.querySelectorAll('.dot').length} at(50,24)=${at} dpr=${devicePixelRatio} vw=${innerWidth}x${innerHeight}`;
+  window.__TAURI_INTERNALS__.invoke('debug_log', { msg: extra + '\n' + els.join('\n') });
+}, 500)"#;
+
 /// Coalesces `dirty` notifications: at most one snapshot per 100 ms.
 async fn emitter(app: AppHandle, shared: Arc<Shared>) {
     loop {
         shared.dirty.notified().await;
         let snap = shared.snapshot();
+        if std::env::var_os("CLAWED_DEBUG").is_some() {
+            eprintln!("[clawed] state {}", serde_json::to_string(&snap).unwrap_or_default());
+            if let Some(w) = crate::window::get(&app) {
+                let _ = w.eval(DEBUG_DUMP);
+            }
+        }
         let _ = app.emit_to(crate::window::LABEL, "state", &snap);
         crate::tray::refresh(&app, &shared, &snap);
         tokio::time::sleep(EMIT_INTERVAL).await;
@@ -41,22 +59,20 @@ async fn emitter(app: AppHandle, shared: Arc<Shared>) {
 
 /// Marks sessions whose `claude` process died, and drops expired ones.
 async fn liveness(shared: Arc<Shared>) {
-    let mut sys = System::new();
     loop {
         tokio::time::sleep(LIVENESS_INTERVAL).await;
         let tracked = lock(&shared.store).tracked_pids();
-        let pids: Vec<Pid> = tracked.iter().map(|(_, p)| Pid::from_u32(*p)).collect();
-        if !pids.is_empty() {
-            sys.refresh_processes_specifics(ProcessesToUpdate::Some(&pids), true, ProcessRefreshKind::nothing());
-        }
+        let dead: Vec<&String> = tracked
+            .iter()
+            .filter(|(_, pid)| !crate::liveness::is_alive(*pid))
+            .map(|(id, _)| id)
+            .collect();
         let now = now_ms();
         let mut changed = false;
         {
             let mut store = lock(&shared.store);
-            for (id, pid) in &tracked {
-                if sys.process(Pid::from_u32(*pid)).is_none() {
-                    changed |= store.mark_stale(id, now);
-                }
+            for id in dead {
+                changed |= store.mark_stale(id, now);
             }
             changed |= store.sweep(now);
         }
@@ -100,7 +116,8 @@ async fn context(shared: Arc<Shared>) {
                 .filter_map(|(id, path, model)| {
                     let u = tailer.poll(&path)?;
                     let model = model.or(u.model.clone()).unwrap_or_default();
-                    Some((id, u.context_tokens(), window_for_model(&model, &overrides)))
+                    let tokens = u.context_tokens();
+                    Some((id, tokens, effective_window(tokens, window_for_model(&model, &overrides))))
                 })
                 .collect::<Vec<_>>()
         })

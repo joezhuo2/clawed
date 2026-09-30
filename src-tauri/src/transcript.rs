@@ -117,9 +117,25 @@ pub fn window_for_model(model: &str, overrides: &std::collections::HashMap<Strin
     }
 }
 
+/// A transcript can't hold more tokens than its window, so usage above the
+/// assumed window means an extended-context session.
+pub fn effective_window(tokens: u64, window: u64) -> u64 {
+    if tokens > window && window < 1_000_000 {
+        1_000_000
+    } else {
+        window
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_grows_when_exceeded() {
+        assert_eq!(effective_window(150_000, 200_000), 200_000);
+        assert_eq!(effective_window(250_000, 200_000), 1_000_000);
+    }
 
     const LINE: &str = r#"{"type":"assistant","isSidechain":false,"timestamp":"2026-09-30T19:59:45.666Z","message":{"id":"msg_1","model":"claude-opus-5-5","usage":{"input_tokens":2,"cache_creation_input_tokens":57126,"cache_read_input_tokens":39921,"output_tokens":171}}}"#;
 

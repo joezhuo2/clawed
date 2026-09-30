@@ -5,6 +5,7 @@ pub mod commands;
 pub mod format;
 pub mod installer;
 pub mod ipc;
+pub mod liveness;
 pub mod platform;
 pub mod settings;
 pub mod state;
@@ -78,6 +79,7 @@ pub fn run() {
             commands::set_island_size,
             commands::set_interactive,
             commands::open_settings,
+            commands::debug_log,
             commands::get_settings,
             commands::save_settings,
             commands::installer_status,

@@ -31,6 +31,9 @@ pub fn decide(shared: Shr, id: String, allow: bool) -> bool {
 
 #[tauri::command]
 pub async fn set_island_size(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
+    if std::env::var_os("CLAWED_DEBUG").is_some() {
+        eprintln!("[clawed] set_island_size {width}x{height}");
+    }
     crate::window::set_size(&app, width, height).map_err(|e| e.to_string())
 }
 
@@ -42,6 +45,14 @@ pub async fn set_interactive(app: AppHandle, interactive: bool) -> Result<(), St
 #[tauri::command]
 pub async fn open_settings(app: AppHandle) {
     crate::window::open_settings(&app);
+}
+
+/// Frontend diagnostics, printed only with `CLAWED_DEBUG` set.
+#[tauri::command]
+pub fn debug_log(msg: String) {
+    if std::env::var_os("CLAWED_DEBUG").is_some() {
+        eprintln!("[clawed:ui] {msg}");
+    }
 }
 
 #[tauri::command]

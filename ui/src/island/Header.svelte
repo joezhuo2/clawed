@@ -13,18 +13,22 @@
 </script>
 
 <div class="header">
-  <div class="dots" aria-label="{sessions.length} sessions">
-    {#each sessions.slice(0, MAX_DOTS) as s (s.id)}
-      <span class="dot" class:pulse={s.state === "awaiting_approval"} style:background={stateColorVar(s.state)}></span>
-    {/each}
-    {#if sessions.length > MAX_DOTS}
-      <span class="more">+{sessions.length - MAX_DOTS}</span>
-    {/if}
-  </div>
+  {#if sessions.length > 0}
+    <div class="dots">
+      {#each sessions.slice(0, MAX_DOTS) as s (s.id)}
+        <span class="dot" class:pulse={s.state === "awaiting_approval"} style:background={stateColorVar(s.state)}></span>
+      {/each}
+      {#if sessions.length > MAX_DOTS}
+        <span class="more">+{sessions.length - MAX_DOTS}</span>
+      {/if}
+    </div>
+  {/if}
 
-  <div class="bar" class:hidden={!showBar}>
-    <div class="track"><div class="fill" style:transform="scaleX({progress})"></div></div>
-    <span class="count">{primary?.todos_done ?? 0}/{primary?.todos_total ?? 0}</span>
+  <div class="bar">
+    {#if showBar && primary}
+      <div class="track"><div class="fill" style:transform="scaleX({progress})"></div></div>
+      <span class="count">{primary.todos_done}/{primary.todos_total}</span>
+    {/if}
   </div>
 
   <svg class="rings" viewBox="0 0 24 24" aria-hidden="true">
@@ -75,10 +79,6 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
-    transition: opacity var(--fade-ms);
-  }
-  .bar.hidden {
-    opacity: 0;
   }
   .track {
     flex: 1;
