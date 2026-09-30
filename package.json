@@ -2,6 +2,8 @@
   "name": "clawed",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
+  "repository": "github:joezhuo2/clawed",
   "type": "module",
   "scripts": {
     "dev": "vite --config ui/vite.config.ts",

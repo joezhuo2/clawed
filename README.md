@@ -7,6 +7,13 @@ CPU/RAM/GPU as rings.
 Built with Tauri 2 (Rust) and Svelte 5. There's no branding yet: no logo, mascot,
 sounds, or Anthropic/Claude brand assets.
 
+> **Status:** early (v0.1). Developed and tested on Windows 11. macOS code paths
+> exist but haven't been built or tested. No prebuilt releases yet; build from
+> source.
+>
+> clawed is an independent project. It is not affiliated with, endorsed by, or
+> sponsored by Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic.
+
 ## What it shows
 
 - **Collapsed pill:** one dot per session colored by state, a todo progress bar
@@ -95,9 +102,36 @@ cargo run -p clawed --bin replay -- fixtures/sample-session.jsonl --speed 2
 - macOS: the island sits below the menu bar; placing it around the notch needs
   an NSPanel (`tauri-nspanel`). The GPU ring shows `--`. The macOS paths
   compile in principle but haven't been built or tested.
-- Windows named pipes: another local user could squat the pipe name before
-  clawed starts. That's a low risk on a single-user machine, but worth fixing
-  before wider distribution.
-- The name "clawed" sounds like "Claude"; reconsider it before any public release.
+- Windows named pipes: another local process could create the pipe name before
+  clawed starts and receive hook events or answer approvals. That's a low risk
+  on a single-user machine and is planned to be hardened.
 
-See `docs/specs/` for the design and `docs/memory.md` for measurements.
+## Privacy
+
+Everything stays on your machine. clawed makes no network requests. The hook
+forwards event metadata (session, tool name, paths, prompts) to the local app
+only, and never forwards file contents from Write/Edit.
+
+## Project layout
+
+```
+crates/proto/     wire types, pipe name, payload stripping
+crates/hook/      clawed-hook binary
+src-tauri/        backend app (Rust)
+ui/               island and settings windows (Svelte)
+fixtures/         synthetic hook payloads for replay
+scripts/          hook build and memory measurement helpers
+docs/             design notes and measurements
+```
+
+See [docs/design.md](docs/design.md) for the design and
+[docs/memory.md](docs/memory.md) for memory measurements.
+
+## Contributing
+
+Issues and pull requests are welcome. Please run `cargo test --workspace`,
+`npm test` and `npm run check` before opening a PR.
+
+## License
+
+[MIT](LICENSE)

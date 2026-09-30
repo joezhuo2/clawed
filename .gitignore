@@ -4,3 +4,10 @@ node_modules/
 *.log
 fixtures/captured-*.jsonl
 /src-tauri/binaries
+/src-tauri/gen/schemas
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

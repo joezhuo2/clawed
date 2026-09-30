@@ -9,7 +9,7 @@ Development and testing happen on Windows. macOS code paths are written but veri
 | Topic | Decision |
 | --- | --- |
 | Name | `clawed` (repo, crates, installer) |
-| Scope | Full v1: all six phases of the original plan |
+| Scope | Full v1 |
 | Frontend | Svelte 5 + Vite, plain CSS |
 | Hook shipping | Separate tiny `clawed-hook` binary, std + sync `interprocess`, no async runtime |
 | Approvals | `PermissionRequest` hook only (no PreToolUse fallback) |
@@ -38,7 +38,7 @@ clawed/
   src-tauri/            backend app
   ui/                   Svelte frontend
   fixtures/             captured payloads (*.jsonl) + replay input
-  docs/specs/           this document
+  docs/design.md        this document
 ```
 
 ## Wire protocol (`proto`)
