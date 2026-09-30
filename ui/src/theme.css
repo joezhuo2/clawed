@@ -32,7 +32,7 @@
   --deny-bg: #2c2c2e;
   --deny-text: #f2f2f2;
 
-  /* Geometry (window sizes must match COLLAPSED in src-tauri/src/window.rs) */
+  /* Geometry (must match WIDTH / pill constants in src-tauri/src/window.rs) */
   --top-gap: 6px;
   --pill-w: 200px;
   --pill-h: 34px;

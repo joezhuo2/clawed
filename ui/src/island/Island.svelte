@@ -8,10 +8,8 @@
   import SessionRow from "./SessionRow.svelte";
   import UsageFooter from "./UsageFooter.svelte";
 
-  // Must match COLLAPSED in src-tauri/src/window.rs and theme.css geometry.
-  const COLLAPSED_W = 260;
+  // Must match COLLAPSED_H in src-tauri/src/window.rs. Width is fixed there.
   const COLLAPSED_H = 48;
-  const EXPANDED_W = 420;
   const MAX_H = 640;
 
   let snap = $state<Snapshot | null>(null);
@@ -40,7 +38,7 @@
     showPanel = true;
     if (expanded) return;
     await invoke("set_interactive", { interactive: true });
-    await invoke("set_island_size", { width: EXPANDED_W, height: MAX_H });
+    await invoke("set_island_height", { height: MAX_H });
     if (gen !== generation) return;
     // The cursor may have left while the window was growing.
     if (wantOpen) expanded = true;
@@ -54,7 +52,7 @@
       if (gen !== generation || expanded) return;
       showPanel = false;
       lastHeight = 0;
-      await invoke("set_island_size", { width: COLLAPSED_W, height: COLLAPSED_H });
+      await invoke("set_island_height", { height: COLLAPSED_H });
       await invoke("set_interactive", { interactive: false });
     };
     // The window shrinks only after the shape animation has finished.
@@ -92,7 +90,7 @@
       const h = Math.min(MAX_H, Math.ceil(el.getBoundingClientRect().height) + 16);
       if (Math.abs(h - lastHeight) > 2) {
         lastHeight = h;
-        invoke("set_island_size", { width: EXPANDED_W, height: h });
+        invoke("set_island_height", { height: h });
       }
     });
     ro.observe(el);

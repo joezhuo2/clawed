@@ -1,6 +1,7 @@
 //! The island window: creation, teardown, sizing, click-through and hover.
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{
@@ -11,8 +12,17 @@ use tauri::{
 pub const LABEL: &str = "island";
 pub const SETTINGS_LABEL: &str = "settings";
 
-/// Collapsed window size in logical pixels; the UI draws the pill inside it.
-pub const COLLAPSED: (f64, f64) = (260.0, 48.0);
+use crate::state::Shared;
+
+/// Window width in logical pixels. Fixed, so resizing never moves the window
+/// horizontally (a width change plus re-centering flashed for a frame).
+pub const WIDTH: f64 = 420.0;
+/// Collapsed window height; the UI draws the pill inside it.
+pub const COLLAPSED_H: f64 = 48.0;
+/// Pill geometry, must match theme.css (--pill-w, --pill-h, --top-gap).
+const PILL_W: f64 = 200.0;
+const PILL_H: f64 = 34.0;
+const TOP_GAP: f64 = 6.0;
 const HOVER_POLL: Duration = Duration::from_millis(80);
 
 static CREATING: AtomicBool = AtomicBool::new(false);
@@ -46,7 +56,7 @@ pub fn ensure(app: &AppHandle) {
 }
 
 fn create(app: &AppHandle) -> tauri::Result<()> {
-    let (w, h) = COLLAPSED;
+    let (w, h) = (WIDTH, COLLAPSED_H);
     let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("index.html".into()));
     #[cfg(windows)]
     let builder = builder.additional_browser_args(&browser_args());
@@ -65,7 +75,7 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
         .visible(false)
         .build()?;
     crate::platform::prepare_island(&win);
-    place(&win, w, h)?;
+    place(&win)?;
     win.set_ignore_cursor_events(true)?;
     win.show()?;
     spawn_hover_poll(app.clone());
@@ -85,15 +95,16 @@ pub fn toggle(app: &AppHandle) {
     }
 }
 
-/// Sizes the window (logical px) and keeps it pinned top-center.
-pub fn set_size(app: &AppHandle, w: f64, h: f64) -> tauri::Result<()> {
+/// Sets the window height (logical px). The top edge and width never change,
+/// so the island does not move while the window grows or shrinks.
+pub fn set_height(app: &AppHandle, h: f64) -> tauri::Result<()> {
     let Some(win) = get(app) else { return Ok(()) };
-    let (w, h) = (w.clamp(80.0, 800.0), h.clamp(24.0, 900.0));
-    win.set_size(LogicalSize::new(w, h))?;
-    place(&win, w, h)
+    win.set_size(LogicalSize::new(WIDTH, h.clamp(COLLAPSED_H, 900.0)))
 }
 
-fn place(win: &WebviewWindow, w: f64, _h: f64) -> tauri::Result<()> {
+/// Pins the window top-center on the primary monitor.
+fn place(win: &WebviewWindow) -> tauri::Result<()> {
+    let w = WIDTH;
     let Some(mon) = win.primary_monitor()?.or(win.current_monitor()?) else { return Ok(()) };
     let scale = mon.scale_factor();
     let pos = mon.position();
@@ -117,14 +128,20 @@ fn spawn_hover_poll(app: AppHandle) {
         loop {
             tokio::time::sleep(HOVER_POLL).await;
             let Some(win) = get(&app) else { return };
-            let (Ok(cur), Ok(pos), Ok(size)) = (app.cursor_position(), win.outer_position(), win.outer_size())
+            let (Ok(cur), Ok(pos), Ok(size), Ok(scale)) =
+                (app.cursor_position(), win.outer_position(), win.outer_size(), win.scale_factor())
             else {
                 continue;
             };
-            let now = cur.x >= pos.x as f64
-                && cur.x < (pos.x + size.width as i32) as f64
-                && cur.y >= pos.y as f64 - 2.0
-                && cur.y < (pos.y + size.height as i32) as f64;
+            let expanded = app.state::<Arc<Shared>>().expanded.load(Ordering::Relaxed);
+            let (top, center) = (pos.y as f64, pos.x as f64 + size.width as f64 / 2.0);
+            // Collapsed: only the pill counts, not the transparent margins.
+            let (half_w, bottom) = if expanded {
+                (size.width as f64 / 2.0, top + size.height as f64)
+            } else {
+                ((PILL_W / 2.0 + 4.0) * scale, top + (TOP_GAP + PILL_H + 4.0) * scale)
+            };
+            let now = (cur.x - center).abs() < half_w && cur.y >= top - 2.0 && cur.y < bottom;
             if now != inside {
                 inside = now;
                 let _ = win.emit_to(LABEL, "hover", inside);

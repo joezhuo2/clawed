@@ -77,7 +77,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_state,
             commands::decide,
-            commands::set_island_size,
+            commands::set_island_height,
             commands::set_interactive,
             commands::open_settings,
             commands::get_settings,

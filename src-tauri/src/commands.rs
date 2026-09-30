@@ -33,11 +33,11 @@ pub fn decide(shared: Shr, id: String, allow: bool) -> bool {
 }
 
 #[tauri::command]
-pub async fn set_island_size(app: AppHandle, width: f64, height: f64) -> Result<(), String> {
+pub async fn set_island_height(app: AppHandle, height: f64) -> Result<(), String> {
     if std::env::var_os("CLAWED_DEBUG").is_some() {
-        eprintln!("[clawed] set_island_size {width}x{height}");
+        eprintln!("[clawed] set_island_height {height}");
     }
-    crate::window::set_size(&app, width, height).map_err(|e| e.to_string())
+    crate::window::set_height(&app, height).map_err(|e| e.to_string())
 }
 
 /// Called when the island expands (true) or finishes collapsing (false).
