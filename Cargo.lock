@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "clawed-hook"
+version = "0.1.0"
+dependencies = [
+ "clawed-proto",
+ "interprocess",
+ "serde_json",
+ "windows-sys",
+]
+
+[[package]]
 name = "clawed-proto"
 version = "0.1.0"
 dependencies = [

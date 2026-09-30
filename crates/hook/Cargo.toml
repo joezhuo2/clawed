@@ -1,0 +1,24 @@
+[package]
+name = "clawed-hook"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "clawed-hook"
+path = "src/main.rs"
+
+[dependencies]
+clawed-proto = { path = "../proto", features = ["ipc"] }
+serde_json.workspace = true
+interprocess.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+clawed-proto = { path = "../proto", features = ["ipc"] }
