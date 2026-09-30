@@ -1,0 +1,45 @@
+[package]
+name = "clawed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "clawed"
+
+[lib]
+name = "clawed_lib"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "clawed"
+path = "src/main.rs"
+
+[[bin]]
+name = "replay"
+path = "src/bin/replay.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+clawed-proto = { path = "../crates/proto", features = ["ipc"] }
+tauri = { version = "2.12", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-autostart = "2.6"
+tauri-plugin-single-instance = "2.5"
+serde.workspace = true
+serde_json.workspace = true
+interprocess = { workspace = true, features = ["tokio"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros", "io-util", "fs"] }
+notify = { version = "8.2", default-features = false, features = ["macos_fsevent"] }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+dirs = "6"
+similar = "2"
+log = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = "3"
