@@ -1,0 +1,168 @@
+//! Background loops: emission, liveness, context, usage, idle teardown.
+
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use std::time::Duration;
+
+use clawed_proto::now_ms;
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+use tauri::{AppHandle, Emitter};
+
+use crate::state::{lock, Shared};
+use crate::transcript::window_for_model;
+
+/// Max emission rate to the island (10 Hz).
+const EMIT_INTERVAL: Duration = Duration::from_millis(100);
+const LIVENESS_INTERVAL: Duration = Duration::from_secs(10);
+const CONTEXT_INTERVAL: Duration = Duration::from_secs(2);
+const USAGE_BUSY: Duration = Duration::from_secs(60);
+const USAGE_IDLE: Duration = Duration::from_secs(300);
+const IDLE_CHECK: Duration = Duration::from_secs(30);
+
+pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
+    tauri::async_runtime::spawn(emitter(app.clone(), shared.clone()));
+    tauri::async_runtime::spawn(liveness(shared.clone()));
+    tauri::async_runtime::spawn(context(shared.clone()));
+    tauri::async_runtime::spawn(usage(shared.clone()));
+    tauri::async_runtime::spawn(idle_teardown(app, shared));
+}
+
+/// Coalesces `dirty` notifications: at most one snapshot per 100 ms.
+async fn emitter(app: AppHandle, shared: Arc<Shared>) {
+    loop {
+        shared.dirty.notified().await;
+        let snap = shared.snapshot();
+        let _ = app.emit_to(crate::window::LABEL, "state", &snap);
+        crate::tray::refresh(&app, &shared, &snap);
+        tokio::time::sleep(EMIT_INTERVAL).await;
+    }
+}
+
+/// Marks sessions whose `claude` process died, and drops expired ones.
+async fn liveness(shared: Arc<Shared>) {
+    let mut sys = System::new();
+    loop {
+        tokio::time::sleep(LIVENESS_INTERVAL).await;
+        let tracked = lock(&shared.store).tracked_pids();
+        let pids: Vec<Pid> = tracked.iter().map(|(_, p)| Pid::from_u32(*p)).collect();
+        if !pids.is_empty() {
+            sys.refresh_processes_specifics(ProcessesToUpdate::Some(&pids), true, ProcessRefreshKind::nothing());
+        }
+        let now = now_ms();
+        let mut changed = false;
+        {
+            let mut store = lock(&shared.store);
+            for (id, pid) in &tracked {
+                if sys.process(Pid::from_u32(*pid)).is_none() {
+                    changed |= store.mark_stale(id, now);
+                }
+            }
+            changed |= store.sweep(now);
+        }
+        if shared.is_busy() {
+            shared.touch_active();
+        }
+        if changed {
+            shared.mark_dirty();
+        }
+    }
+}
+
+/// Re-reads transcripts of sessions that had events, for context usage.
+async fn context(shared: Arc<Shared>) {
+    loop {
+        tokio::time::sleep(CONTEXT_INTERVAL).await;
+        let ids: Vec<String> = lock(&shared.context_dirty).drain().collect();
+        if ids.is_empty() {
+            continue;
+        }
+        let overrides = lock(&shared.settings).context_overrides.clone();
+        let targets: Vec<(String, PathBuf, Option<String>)> = {
+            let store = lock(&shared.store);
+            ids.iter()
+                .filter_map(|id| {
+                    let s = store.sessions.get(id)?;
+                    Some((id.clone(), PathBuf::from(s.transcript_path.as_ref()?), s.model.clone()))
+                })
+                .collect()
+        };
+        let shared2 = shared.clone();
+        let results = tokio::task::spawn_blocking(move || {
+            let mut tailer = lock(&shared2.tailer);
+            let active: Vec<PathBuf> = {
+                let store = lock(&shared2.store);
+                store.sessions.values().filter_map(|s| s.transcript_path.as_ref().map(PathBuf::from)).collect()
+            };
+            tailer.retain(&active);
+            targets
+                .into_iter()
+                .filter_map(|(id, path, model)| {
+                    let u = tailer.poll(&path)?;
+                    let model = model.or(u.model.clone()).unwrap_or_default();
+                    Some((id, u.context_tokens(), window_for_model(&model, &overrides)))
+                })
+                .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap_or_default();
+
+        let now = now_ms();
+        let mut changed = false;
+        {
+            let mut store = lock(&shared.store);
+            for (id, tokens, window) in results {
+                changed |= store.apply_transcript_context(&id, tokens, window, now);
+            }
+        }
+        if changed {
+            shared.mark_dirty();
+        }
+    }
+}
+
+fn projects_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".claude")))?;
+    Some(base.join("projects"))
+}
+
+/// Refreshes the local estimate when exact status line data is missing.
+async fn usage(shared: Arc<Shared>) {
+    loop {
+        let now = now_ms();
+        if !lock(&shared.usage).has_fresh_exact(now) {
+            if let Some(root) = projects_dir() {
+                let s2 = shared.clone();
+                let totals = tokio::task::spawn_blocking(move || lock(&s2.estimator).scan(&root, now_ms())).await;
+                if let Ok(t) = totals {
+                    lock(&shared.usage).set_estimate(t);
+                }
+            }
+        }
+        shared.mark_dirty();
+        let busy = !lock(&shared.store).sessions.is_empty();
+        tokio::time::sleep(if busy { USAGE_BUSY } else { USAGE_IDLE }).await;
+    }
+}
+
+/// Low memory mode: destroys the island after the idle delay.
+async fn idle_teardown(app: AppHandle, shared: Arc<Shared>) {
+    loop {
+        tokio::time::sleep(IDLE_CHECK).await;
+        let (low_memory, idle_ms) = {
+            let s = lock(&shared.settings);
+            (s.low_memory, s.idle_minutes.max(1) * 60_000)
+        };
+        if shared.is_busy() {
+            shared.touch_active();
+            continue;
+        }
+        let idle_for = now_ms().saturating_sub(shared.last_active.load(Ordering::Relaxed));
+        if low_memory && idle_for >= idle_ms && crate::window::get(&app).is_some() {
+            log::info!("low memory mode: tearing down island after {}s idle", idle_for / 1000);
+            crate::window::destroy(&app);
+        }
+    }
+}
