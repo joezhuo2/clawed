@@ -88,8 +88,9 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let handle = app.handle().clone();
+            // Dev builds never register themselves as a login item.
             let first_run = !lock(&shared.settings).first_run_done;
-            if first_run {
+            if first_run && !cfg!(debug_assertions) {
                 if let Err(e) = handle.autolaunch().enable() {
                     log::warn!("enable autostart: {e}");
                 }

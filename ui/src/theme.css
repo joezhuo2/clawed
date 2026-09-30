@@ -1,0 +1,70 @@
+/* Every color and dimension lives here so a branding pass only touches
+   this file and the icon assets. */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+
+  /* Island body */
+  --island-bg: #000;
+  --island-text: #f2f2f2;
+  --island-muted: #8e8e93;
+  --island-faint: #3a3a3c;
+  --island-track: #2c2c2e;
+  --island-hover: #1c1c1e;
+
+  /* State colors */
+  --state-working: #4c8dff;
+  --state-waiting: #ffb340;
+  --state-approval: #a970ff;
+  --state-done: #34c759;
+  --state-error: #ff453a;
+  --state-stale: #636366;
+
+  /* Ring thresholds */
+  --ring-ok: #e5e5ea;
+  --ring-warn: #ffb340;
+  --ring-crit: #ff453a;
+
+  /* Buttons */
+  --allow-bg: #f2f2f2;
+  --allow-text: #000;
+  --deny-bg: #2c2c2e;
+  --deny-text: #f2f2f2;
+
+  /* Geometry (window sizes must match COLLAPSED in src-tauri/src/window.rs) */
+  --top-gap: 6px;
+  --pill-w: 200px;
+  --pill-h: 34px;
+  --panel-w: 400px;
+  --panel-radius: 22px;
+  --pad: 14px;
+
+  /* Motion */
+  --shape-ms: 280ms;
+  --fade-ms: 140ms;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Settings window */
+  --page-bg: #f5f5f7;
+  --page-text: #1d1d1f;
+  --page-muted: #6e6e73;
+  --card-bg: #fff;
+  --card-border: #d2d2d7;
+  --accent: #0a66d8;
+  --diff-add: #1a7f37;
+  --diff-del: #cf222e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #1c1c1e;
+    --page-text: #f2f2f7;
+    --page-muted: #98989d;
+    --card-bg: #2c2c2e;
+    --card-border: #3a3a3c;
+    --accent: #4c8dff;
+    --diff-add: #3fb950;
+    --diff-del: #f85149;
+  }
+}
