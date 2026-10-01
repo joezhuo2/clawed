@@ -63,27 +63,112 @@ jobs:
           $extra = if ($env:SIGN_ARGS) { $env:SIGN_ARGS -split ' ' } else { @() }
           npx tauri build --bundles nsis @extra
 
-      - name: Checksums
-        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - run: npm ci
+
+      - name: Check tag matches versions
+        run: node scripts/check-version.mjs ${{ github.ref_name }}
+
+      - name: Test (native target only)
+        if: matrix.target == 'aarch64-apple-darwin'
         run: |
-          New-Item -ItemType Directory -Force dist-release | Out-Null
-          Copy-Item target/release/bundle/nsis/*.exe dist-release/
-          Push-Location dist-release
-          Get-ChildItem *.exe | ForEach-Object {
-            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
-          } | Set-Content -Encoding ascii SHA256SUMS.txt
-          Get-Content SHA256SUMS.txt
-          Pop-Location
+          npm run build:hook
+          npm run build
+          cargo test --workspace
+
+      # Developer ID signing and notarization are done by `tauri build` when
+      # the APPLE_* variables are set (see docs/releasing.md). Tauri treats an
+      # empty variable as set, so only export the ones that have values.
+      # Without a certificate the app is ad-hoc signed ("-"), which Apple
+      # silicon requires to run at all; Gatekeeper then needs right-click →
+      # Open.
+      - name: Signing environment
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            {
+              echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+              echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+              echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+            } >> "$GITHUB_ENV"
+            if [ -n "$APPLE_ID" ]; then
+              {
+                echo "APPLE_ID=$APPLE_ID"
+                echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+                echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+              } >> "$GITHUB_ENV"
+            fi
+          else
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build app and dmg
+        run: npx tauri build --target ${{ matrix.target }} --bundles app,dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-release
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist-release
+        run: |
+          sha256sum *.exe *.dmg > SHA256SUMS.txt
+          cat SHA256SUMS.txt
 
       - name: Release notes
-        run: node scripts/changelog-section.mjs ${{ github.ref_name }} > dist-release/NOTES.md
+        run: node scripts/changelog-section.mjs ${{ github.ref_name }} > NOTES.md
 
       - name: Create draft release
-        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" --draft `
-            --title "clawed ${{ github.ref_name }}" `
-            --notes-file dist-release/NOTES.md `
-            (Get-ChildItem dist-release/*.exe).FullName dist-release/SHA256SUMS.txt
+          gh release create "${{ github.ref_name }}" --draft \
+            --title "clawed ${{ github.ref_name }}" \
+            --notes-file NOTES.md \
+            dist-release/*.exe dist-release/*.dmg dist-release/SHA256SUMS.txt

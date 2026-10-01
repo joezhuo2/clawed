@@ -7,6 +7,43 @@ change behavior.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-01
+
+macOS support, first pass. All macOS code now type-checks for
+`aarch64-apple-darwin` with clippy `-D warnings`, but it has not yet been run on
+a Mac; treat macOS builds as preview until the macOS checklist in
+`docs/releasing.md` has been run.
+
+### Added
+
+- macOS: the island is a non-activating `NSPanel` (`tauri-nspanel` 2.1) at
+  status-bar level, on every Space and over full-screen apps. Clicking it
+  never activates clawed or takes focus from your terminal, and it stays out
+  of Cmd-Tab and Mission Control cycling.
+- macOS: the island is placed from the primary screen's real top inset
+  instead of a fixed 26 pt: directly below the menu bar, and directly under
+  the notch on notched MacBooks (where the menu bar is as tall as the notch),
+  including when the menu bar auto-hides.
+- macOS: GPU ring, from IOKit's `IOAccelerator` `PerformanceStatistics`
+  ("Device Utilization %", the value Activity Monitor uses), taking the
+  busiest GPU. Works on Apple silicon and Intel/AMD Macs.
+- macOS: `LSUIElement` in `Info.plist`, so no Dock icon appears at launch.
+- Release workflow builds dmgs for Apple silicon and Intel next to the
+  Windows installer, with one `SHA256SUMS.txt` for all files. Developer ID
+  signing and notarization run when the Apple secrets are configured;
+  otherwise the app is ad-hoc signed.
+- `scripts/measure-memory.sh`: macOS memory measurement (clawed plus its
+  WebKit processes).
+
+### Changed
+
+- macOS uses the system TLS stack (Security.framework, keychain roots) for
+  the usage endpoint. Windows keeps rustls. This also means no C TLS library
+  is cross-compiled for macOS.
+- The macOS CI job is now blocking.
+- Island creation and teardown run on the main thread on macOS, as AppKit
+  requires.
+
 ## [0.1.3] - 2026-10-01
 
 First version intended for a public GitHub release.
@@ -81,7 +118,8 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/joezhuo2/clawed/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/joezhuo2/clawed/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/joezhuo2/clawed/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/joezhuo2/clawed/compare/v0.1.0...v0.1.1

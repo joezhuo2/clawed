@@ -155,10 +155,76 @@ mod gpu {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
 mod gpu {
-    /// Not implemented outside Windows yet (macOS needs IOKit's
-    /// IOAccelerator statistics); the ring shows "--".
+    use objc2_core_foundation::{CFDictionary, CFNumber, CFRetained, CFString, CFType};
+    use objc2_io_kit::{
+        io_iterator_t, io_object_t, IOIteratorNext, IOObjectRelease, IORegistryEntryCreateCFProperty,
+        IOServiceGetMatchingServices, IOServiceMatching,
+    };
+
+    /// `Device Utilization %` from the `PerformanceStatistics` of every
+    /// IOAccelerator (the value Activity Monitor's GPU history shows), taking
+    /// the busiest GPU. Works for Apple silicon and Intel/AMD GPUs.
+    pub struct Gpu {
+        stats_key: CFRetained<CFString>,
+        util_key: CFRetained<CFString>,
+    }
+
+    // CFStrings are immutable and only used from the sampling task.
+    unsafe impl Send for Gpu {}
+
+    impl Gpu {
+        pub fn new() -> Self {
+            Self {
+                stats_key: CFString::from_static_str("PerformanceStatistics"),
+                util_key: CFString::from_static_str("Device Utilization %"),
+            }
+        }
+
+        pub fn sample(&mut self) -> Option<f64> {
+            let mut iter: io_iterator_t = 0;
+            // SAFETY: the matching dictionary is consumed by
+            // IOServiceGetMatchingServices; iter and every entry are released.
+            // Port 0 is the default main port (kIOMainPortDefault is macOS 12+).
+            unsafe {
+                let matching = IOServiceMatching(c"IOAccelerator".as_ptr())?;
+                let matching = CFRetained::cast_unchecked::<CFDictionary>(matching);
+                if IOServiceGetMatchingServices(0, Some(matching), &mut iter) != 0 || iter == 0 {
+                    return None;
+                }
+                let mut best: Option<f64> = None;
+                loop {
+                    let entry = IOIteratorNext(iter);
+                    if entry == 0 {
+                        break;
+                    }
+                    if let Some(v) = self.utilization(entry) {
+                        best = Some(best.map_or(v, |b| b.max(v)));
+                    }
+                    IOObjectRelease(entry);
+                }
+                IOObjectRelease(iter);
+                best.map(|v| v.clamp(0.0, 100.0))
+            }
+        }
+
+        /// # Safety
+        /// `entry` must be a live registry entry.
+        unsafe fn utilization(&self, entry: io_object_t) -> Option<f64> {
+            let stats = unsafe { IORegistryEntryCreateCFProperty(entry, Some(&self.stats_key), None, 0)? };
+            let stats = stats.downcast::<CFDictionary>().ok()?;
+            // SAFETY: PerformanceStatistics is a dictionary keyed by strings.
+            let stats = unsafe { CFRetained::cast_unchecked::<CFDictionary<CFString, CFType>>(stats) };
+            let n = stats.get(&self.util_key)?.downcast::<CFNumber>().ok()?;
+            n.as_f64().or_else(|| n.as_i64().map(|v| v as f64))
+        }
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+mod gpu {
+    /// Not implemented on this platform; the ring shows "--".
     pub struct Gpu;
 
     impl Gpu {

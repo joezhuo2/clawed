@@ -33,6 +33,10 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 dirs = "6"
 similar = "2"
 log = "0.4"
+
+# TLS for the usage endpoint: rustls with bundled roots on Windows, the system
+# TLS stack (Security.framework) and keychain roots on macOS.
+[target.'cfg(not(target_os = "macos"))'.dependencies]
 ureq = "3"
 
 [target.'cfg(windows)'.dependencies]
@@ -49,3 +53,12 @@ tempfile = "3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ureq = { version = "3", default-features = false, features = ["gzip", "native-tls-no-default"] }
+tauri-nspanel = "2.1"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSScreen", "NSResponder", "objc2-core-foundation"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry", "NSArray"] }
+objc2-io-kit = { version = "0.3", default-features = false, features = ["std", "libc"] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFBase", "CFDictionary", "CFNumber", "CFString"] }

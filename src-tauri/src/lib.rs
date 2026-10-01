@@ -74,7 +74,10 @@ pub fn run() {
             window::ensure(app);
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--autostarted"])))
-        .manage(shared.clone())
+        .manage(shared.clone());
+    #[cfg(target_os = "macos")]
+    let app = app.plugin(tauri_nspanel::init());
+    let app = app
         .invoke_handler(tauri::generate_handler![
             commands::get_state,
             commands::decide,

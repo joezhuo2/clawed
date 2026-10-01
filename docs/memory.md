@@ -45,7 +45,27 @@ powershell -File scripts/measure-memory.ps1 -Label busy
 
 `CLAWED_SOCKET` keeps real Claude Code sessions from waking the test instance.
 
+## macOS
+
+Not measured yet. On a Mac, with a release build (`npx tauri build --bundles
+app`):
+
+```bash
+export CLAWED_SOCKET=clawed-measure CLAWED_NO_AUTOSTART=1
+./target/release/bundle/macos/clawed.app/Contents/MacOS/clawed --autostarted &
+sh scripts/measure-memory.sh torn-down
+./target/release/replay fixtures/sample-session.jsonl &
+sh scripts/measure-memory.sh busy
+```
+
+`measure-memory.sh` sums RSS of `clawed` and the WebKit processes
+(`com.apple.WebKit.WebContent`, `Networking`, `GPU`) started after it, since
+WebKit's XPC services are children of launchd rather than of clawed. Keep
+Safari and other WebKit apps closed while measuring. It also prints each
+process's `phys_footprint`, the closest equivalent of private bytes; record
+both in a table like the Windows one above.
+
 ## Not yet done
 
 - Multi-hour soak test (replay in a loop, confirm flat memory).
-- macOS numbers (WebKit content process).
+- macOS numbers (procedure above).

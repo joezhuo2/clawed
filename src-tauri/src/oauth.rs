@@ -71,7 +71,17 @@ pub fn parse_response(body: &str) -> Option<ApiUsage> {
 
 /// Blocking request; call from a blocking thread.
 pub fn fetch(token: &str) -> Result<ApiUsage, String> {
-    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(TIMEOUT)).build().into();
+    let config = ureq::Agent::config_builder().timeout_global(Some(TIMEOUT));
+    // macOS uses Security.framework and the keychain's roots, so no C TLS
+    // library (ring) has to be built for the target.
+    #[cfg(target_os = "macos")]
+    let config = config.tls_config(
+        ureq::tls::TlsConfig::builder()
+            .provider(ureq::tls::TlsProvider::NativeTls)
+            .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+            .build(),
+    );
+    let agent: ureq::Agent = config.build().into();
     let mut resp = agent
         .get(USAGE_URL)
         .header("Authorization", &format!("Bearer {token}"))

@@ -2,7 +2,7 @@
 
 A cross-platform (Windows + macOS) dynamic island built with Tauri 2 (Rust + Svelte). It tracks Claude Code sessions live, shows context and plan usage, and answers permission prompts. Functionality only: no logo, mascot, sounds, or Anthropic/Claude brand assets. Inspired by coucou; nothing from it is reused.
 
-Development and testing happen on Windows. macOS code paths are written but verified only by compiling for the target where possible.
+Development and testing happen on Windows. macOS code is verified by `cargo clippy --target aarch64-apple-darwin` locally and by the macOS CI job; it has not yet been run on a Mac.
 
 ## Decisions
 
@@ -114,7 +114,8 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 ### Window
 - Transparent, undecorated, always-on-top, `skipTaskbar`, not focusable, top-center of the primary monitor.
 - Windows: `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` set on the HWND.
-- macOS: `ActivationPolicy::Accessory`, `tauri-nspanel` non-activating panel above the menu bar.
+- macOS: `ActivationPolicy::Accessory` plus `LSUIElement` (no Dock icon). The window is converted to a `tauri-nspanel` panel (`can_become_key_window: false`, `NSWindowStyleMaskNonactivatingPanel`) at `NSStatusWindowLevel` (25, above the menu bar), with collection behavior `canJoinAllSpaces | stationary | fullScreenAuxiliary | ignoresCycle`. Creation and teardown are dispatched to the main thread; teardown converts the panel back to a window before destroying it.
+- macOS placement: top offset is the primary screen's top inset, `max(frame.maxY - visibleFrame.maxY, safeAreaInsets.top)`. That is the menu bar height, which on notched MacBooks equals the notch height, so the pill hangs directly under the notch; with an auto-hiding menu bar the notch inset still applies. Drawing inside the notch is out of scope (the pill content would sit behind the camera housing).
 - Click-through while collapsed (`set_ignore_cursor_events(true)`). A 60 ms cursor poll (only while the window exists) checks the pill rect and emits `hover` enter/leave; while expanded, click-through is off.
 - Native window resized to expanded bounds before the expand animation and shrunk after the collapse animation (frontend calls `set_island_size` when the transition ends).
 - Low memory: window destroyed after 3 min of no active session and no pending approval; recreated on the next hook event.
@@ -159,7 +160,7 @@ Svelte 5, no component libraries. `theme.css` holds every color and dimension as
 
 ## System meters
 
-CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows via PDH `\GPU Engine(*)\Utilization Percentage`, summed per engine type and taking the busiest type (Task Manager's method). macOS GPU is not implemented in v1 and shows `--`. Sampling runs every 1.5 s only while the island is expanded; the sampler and its PDH query are dropped on collapse. Emitted as a separate `system` event so the tray is never rebuilt for it.
+CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows via PDH `\GPU Engine(*)\Utilization Percentage`, summed per engine type and taking the busiest type (Task Manager's method). macOS GPU via IOKit: every `IOAccelerator` service's `PerformanceStatistics` dictionary, key `Device Utilization %` (what Activity Monitor shows), taking the busiest GPU. Sampling runs every 1.5 s only while the island is expanded; the sampler and its PDH query are dropped on collapse. Emitted as a separate `system` event so the tray is never rebuilt for it.
 
 ## Testing
 
@@ -171,7 +172,7 @@ CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows 
 - `replay` bin: feeds `fixtures/*.jsonl` into the pipe at real or accelerated speed.
 - IPC: a second server on the same name fails; peer SID checks for own pid, System pid, SDDL shape.
 - Manual: window focus, click-through, hover, tray, autostart on Windows; fresh-machine install checklist in `docs/releasing.md`.
-- CI (`.github/workflows/ci.yml`): clippy `-D warnings`, `cargo test --workspace`, `npm test`, `npm run check`, version sync, on Windows (blocking) and macOS (non-blocking). Tags `v*` run `release.yml`: NSIS installer, `SHA256SUMS.txt`, draft release.
+- CI (`.github/workflows/ci.yml`): clippy `-D warnings`, `cargo test --workspace`, `npm test`, `npm run check`, version sync, on Windows and macOS (both blocking). Tags `v*` run `release.yml`: NSIS installer, Apple silicon and Intel dmgs (Developer ID signed and notarized when secrets are set, ad-hoc otherwise), one `SHA256SUMS.txt`, draft release.
 
 ## Memory
 

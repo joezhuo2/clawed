@@ -1,7 +1,8 @@
 # Releasing
 
-Windows only for now. macOS builds run in CI as a non-blocking job but are not
-released.
+Each release ships a Windows NSIS installer and two macOS dmgs (Apple silicon
+and Intel). macOS builds are a preview until the macOS checklist below has
+been run on a real Mac.
 
 ## Versions
 
@@ -13,7 +14,7 @@ The version lives in four places and must match:
 
 `npm run check:version` compares them. CI runs it on every push, and the
 release workflow runs it again with the tag (`node scripts/check-version.mjs
-v0.1.3`), so a tag that doesn't match the files fails the release.
+v0.1.4`), so a tag that doesn't match the files fails the release.
 
 ## Steps
 
@@ -36,13 +37,32 @@ v0.1.3`), so a tag that doesn't match the files fails the release.
 4. Commit, then tag and push:
 
    ```bash
-   git tag -a v0.1.3 -m "clawed 0.1.3"
-   git push origin main v0.1.3
+   git tag -a v0.1.4 -m "clawed 0.1.4"
+   git push origin main v0.1.4
    ```
 
-5. The `Release` workflow builds the NSIS installer, writes
-   `SHA256SUMS.txt`, and creates a **draft** GitHub release. Run the
-   fresh-machine test below against the draft's installer, then publish it.
+5. The `Release` workflow builds the NSIS installer and both dmgs, writes
+   one `SHA256SUMS.txt` for all of them, and creates a **draft** GitHub
+   release. Run the fresh-machine tests below against the draft's files, then
+   publish it.
+
+### Checking macOS from Windows
+
+The macOS code can be type-checked without a Mac. Build scripts for `ring`
+and `objc2-exception-helper` want a C/Objective-C compiler for the target;
+for `cargo check`/`clippy` nothing is linked, so a stub compiler that writes
+empty object files is enough:
+
+```bash
+rustup target add aarch64-apple-darwin
+touch src-tauri/binaries/clawed-hook-aarch64-apple-darwin   # sidecar placeholder
+CC_aarch64_apple_darwin=/path/to/stub-cc AR_aarch64_apple_darwin=/path/to/stub-ar \
+  cargo clippy --workspace --all-targets --target aarch64-apple-darwin -- -D warnings
+```
+
+The stub only needs to create the file after `-o` (compiler) or the `.a`
+argument (archiver). This catches type and API errors, not runtime
+behavior; the CI macOS job builds, links and runs the tests for real.
 
 ### One-time: tag earlier versions
 
@@ -74,7 +94,27 @@ timestamp server). Without the secrets the installer is unsigned and Windows
 SmartScreen shows "Windows protected your PC" on first run; users choose
 **More info → Run anyway**.
 
-## Fresh-machine install test
+### macOS signing and notarization
+
+`tauri build` signs with a Developer ID and notarizes when these repository
+secrets are set:
+
+| Secret | Value |
+| --- | --- |
+| `APPLE_CERTIFICATE` | Base64 of the exported "Developer ID Application" `.p12` (`base64 -i cert.p12`) |
+| `APPLE_CERTIFICATE_PASSWORD` | The `.p12` password |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Your Name (TEAMID)` |
+| `APPLE_ID` | Apple ID email used for notarization |
+| `APPLE_PASSWORD` | An app-specific password for that Apple ID |
+| `APPLE_TEAM_ID` | The 10-character team ID |
+
+Notarization runs only when a certificate is set too. Without a certificate
+the workflow ad-hoc signs (`APPLE_SIGNING_IDENTITY=-`), which Apple silicon
+needs to run the binary at all; Gatekeeper then blocks the first launch until
+the user right-clicks → **Open**. Both `clawed` and the `clawed-hook` sidecar
+are signed by the bundler.
+
+## Fresh-machine install test (Windows)
 
 Run on a clean Windows user profile (a new local account, or a VM snapshot)
 with Claude Code installed and signed in.
@@ -102,3 +142,37 @@ with Claude Code installed and signed in.
       point, Claude Code must keep working: `%LOCALAPPDATA%\clawed\bin` holds
       the hook copy, so check whether the uninstaller removes it and whether
       `~/.claude/settings.json` is left pointing at a missing binary.
+
+## Fresh-machine install test (macOS)
+
+Run on a clean macOS user account (or a VM), once on Apple silicon and, if
+possible, once on Intel, with Claude Code installed and signed in. Run the
+app from a terminal with `CLAWED_DEBUG=1` the first time
+(`/Applications/clawed.app/Contents/MacOS/clawed`).
+
+- [ ] `shasum -a 256` of the dmg matches `SHA256SUMS.txt`.
+- [ ] Gatekeeper: unsigned builds need right-click → **Open**; signed and
+      notarized builds open without a prompt. Note the exact wording.
+- [ ] No Dock icon, at launch or later. The menu bar icon is a template image
+      (follows light/dark menu bar).
+- [ ] The pill sits centered directly below the menu bar. On a notched
+      MacBook it hangs directly under the notch, not behind it. With "Automatically
+      hide and show the menu bar" on, it still clears the notch.
+- [ ] The island shows on every Space and over a full-screen app, and is not in
+      Cmd-Tab or Mission Control.
+- [ ] Clicking Allow / Deny on an approval does not take focus from the
+      terminal (keystrokes still go to the terminal afterwards).
+- [ ] Hover expands the island; leaving collapses it and clicks pass through
+      the transparent margins.
+- [ ] GPU ring shows a number, roughly matching Activity Monitor → Window →
+      GPU History while a GPU load runs.
+- [ ] Usage rings show exact numbers (the usage request works with the system
+      TLS stack).
+- [ ] Launch at login: a LaunchAgent is registered and clawed starts after
+      logging out and in.
+- [ ] Low memory mode: the island is torn down after 3 minutes idle and comes
+      back on the next hook event, with no crash (panel to window conversion).
+- [ ] Install / Uninstall hooks as in the Windows list; the hook is copied to
+      `~/Library/Application Support/clawed/bin`.
+- [ ] Unplug / switch the primary display while the island is shown.
+- [ ] Record memory with `scripts/measure-memory.sh` in `docs/memory.md`.

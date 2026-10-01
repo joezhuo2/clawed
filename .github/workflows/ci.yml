@@ -15,15 +15,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            experimental: false
-          # macOS has never been built; run it so breakage is visible, but
-          # don't fail the workflow on it yet.
-          - os: macos-latest
-            experimental: true
+        os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     steps:
       - uses: actions/checkout@v4
 

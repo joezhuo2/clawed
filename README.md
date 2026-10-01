@@ -6,8 +6,9 @@ CPU/RAM/GPU as rings.
 
 Built with Tauri 2 (Rust) and Svelte 5.
 
-> **Status:** early (v0.1.x). Developed and tested on Windows 11. macOS code paths
-> exist but haven't been built or tested; releases are Windows-only. See
+> **Status:** early (v0.1.x). Developed and tested on Windows 11. macOS support
+> (panel, notch placement, GPU ring, dmg builds) is in place and type-checks,
+> but hasn't been run on a Mac yet, so macOS builds are a preview. See
 > [CHANGELOG.md](CHANGELOG.md) for what changed.
 >
 > clawed is an independent project. It is not affiliated with, endorsed by, or
@@ -66,6 +67,22 @@ protected your PC"); choose **More info → Run anyway**. There's no auto-update
 yet: install a newer version over the old one. The hook binary lives at a
 stable per-user path, so installed hooks keep working across updates.
 
+## Install (macOS, preview)
+
+Download the dmg for your Mac from
+[GitHub Releases](https://github.com/joezhuo2/clawed/releases):
+`clawed_<version>_aarch64.dmg` (Apple silicon) or `clawed_<version>_x64.dmg`
+(Intel), and check it against `SHA256SUMS.txt`:
+
+```bash
+shasum -a 256 clawed_*.dmg
+```
+
+Drag clawed to Applications. Until releases are signed with an Apple
+Developer ID and notarized, Gatekeeper blocks the first launch: right-click
+the app and choose **Open**, or allow it in System Settings → Privacy &
+Security. clawed is a menu bar app with no Dock icon.
+
 ## Build from source
 
 Requirements: Rust 1.85+, Node 20+, and the Tauri 2 prerequisites for your OS.
@@ -100,8 +117,7 @@ npm run check              # svelte-check
 npm run check:version      # versions in Cargo.toml, package.json, tauri.conf.json match
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of these on Windows, and on macOS as a
-non-blocking job.
+CI (`.github/workflows/ci.yml`) runs all of these on Windows and macOS.
 
 Replay recorded or synthetic hook payloads into a running app:
 
@@ -120,9 +136,8 @@ cargo run -p clawed --bin replay -- fixtures/sample-session.jsonl --speed 2
 
 ## Known limitations
 
-- macOS: the island sits below the menu bar; placing it around the notch needs
-  an NSPanel (`tauri-nspanel`). The GPU ring shows `--`. The macOS paths
-  compile in principle but haven't been built or tested.
+- macOS hasn't been run on real hardware yet. The island hangs below the
+  menu bar or notch; it doesn't draw inside the notch area.
 - The local socket is restricted to your user account, not to clawed itself.
   On Windows the pipe has a DACL for your user only, rejects remote clients,
   and the hook refuses a server running as another user. Any process running

@@ -48,6 +48,20 @@ pub fn ensure(app: &AppHandle) {
     if get(app).is_some() || CREATING.swap(true, Ordering::AcqRel) {
         return;
     }
+    // macOS: the NSPanel conversion and NSScreen lookups need the main thread.
+    #[cfg(target_os = "macos")]
+    {
+        let handle = app.clone();
+        if let Err(e) = app.run_on_main_thread(move || finish_create(&handle)) {
+            CREATING.store(false, Ordering::Release);
+            log::error!("island window: {e}");
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    finish_create(app);
+}
+
+fn finish_create(app: &AppHandle) {
     let result = create(app);
     CREATING.store(false, Ordering::Release);
     if let Err(e) = result {
@@ -83,7 +97,18 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
 }
 
 pub fn destroy(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || finish_destroy(&handle));
+    }
+    #[cfg(not(target_os = "macos"))]
+    finish_destroy(app);
+}
+
+fn finish_destroy(app: &AppHandle) {
     if let Some(win) = get(app) {
+        crate::platform::release_island(app, LABEL);
         let _ = win.destroy();
     }
 }
