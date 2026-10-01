@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      - name: Check tag matches versions
+        run: node scripts/check-version.mjs ${{ github.ref_name }}
+
+      - run: npm run build:hook
+      - run: npm run build
+      - run: cargo test --workspace
+      - run: npm test
+
+      # Optional Authenticode signing. Set WINDOWS_CERTIFICATE (base64 .pfx)
+      # and WINDOWS_CERTIFICATE_PASSWORD as repository secrets. Without them
+      # the installer is built unsigned.
+      - name: Import signing certificate
+        if: env.HAS_CERT == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP cert.pfx
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $pw = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pw
+          Remove-Item $pfx
+          $cfg = @{ bundle = @{ windows = @{
+            certificateThumbprint = $cert.Thumbprint
+            digestAlgorithm = "sha256"
+            timestampUrl = "http://timestamp.digicert.com"
+          } } }
+          $cfg | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 src-tauri/tauri.sign.conf.json
+          "SIGN_ARGS=--config src-tauri/tauri.sign.conf.json" >> $env:GITHUB_ENV
+
+      - name: Build NSIS installer
+        shell: pwsh
+        run: |
+          $extra = if ($env:SIGN_ARGS) { $env:SIGN_ARGS -split ' ' } else { @() }
+          npx tauri build --bundles nsis @extra
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist-release | Out-Null
+          Copy-Item target/release/bundle/nsis/*.exe dist-release/
+          Push-Location dist-release
+          Get-ChildItem *.exe | ForEach-Object {
+            "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content -Encoding ascii SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          Pop-Location
+
+      - name: Release notes
+        run: node scripts/changelog-section.mjs ${{ github.ref_name }} > dist-release/NOTES.md
+
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --draft `
+            --title "clawed ${{ github.ref_name }}" `
+            --notes-file dist-release/NOTES.md `
+            (Get-ChildItem dist-release/*.exe).FullName dist-release/SHA256SUMS.txt

@@ -1,4 +1,5 @@
-//! Plan usage rings: exact data from the status line, local estimate otherwise.
+//! Plan usage rings: exact data from the account usage endpoint or the status
+//! line, local estimate otherwise.
 
 use clawed_proto::{StatusLine, Window};
 use serde::Serialize;
@@ -79,6 +80,11 @@ impl Usage {
         }
         self.exact = Some((st.five_hour.clone(), st.seven_day.clone(), st.ts));
         true
+    }
+
+    /// Exact windows from the account usage endpoint.
+    pub fn apply_api(&mut self, five_hour: Option<Window>, seven_day: Option<Window>, now_ms: u64) {
+        self.exact = Some((five_hour, seven_day, now_ms));
     }
 
     pub fn set_estimate(&mut self, totals: EstimateTotals) {

@@ -140,7 +140,7 @@
         </label>
       </div>
       <p class="muted">
-        Caps only apply when exact usage from the Claude Code status line is unavailable. Plan limits are not
+        Caps only apply when exact usage (from your Claude account, or the Claude Code status line) is unavailable. Plan limits are not
         published as token counts, so estimated rings are approximate.
       </p>
     </section>

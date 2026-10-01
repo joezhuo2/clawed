@@ -14,7 +14,7 @@
     <span class="dot" style:background={stateColorVar(s.state)}></span>
     <span class="repo" title={s.repo}>{s.repo || "session"}</span>
     <span class="state">{stateLabel(s.state)}</span>
-    <span class="elapsed">{formatElapsed(now - s.started_at)}</span>
+    <span class="elapsed">{formatElapsed((s.turn_ended_at ?? now) - s.turn_started_at)}</span>
   </div>
   <div class="step" title={stepText(s)}>{stepText(s) || " "}</div>
   <div class="meters">

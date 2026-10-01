@@ -11,3 +11,5 @@ fixtures/captured-*.jsonl
 Thumbs.db
 .vscode/
 .idea/
+/src-tauri/tauri.sign.conf.json
+/dist-release

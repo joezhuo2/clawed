@@ -6,6 +6,7 @@ pub mod format;
 pub mod installer;
 pub mod ipc;
 pub mod liveness;
+pub mod oauth;
 pub mod platform;
 pub mod settings;
 pub mod state;

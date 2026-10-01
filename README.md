@@ -4,12 +4,11 @@ A small always-on-top island for Claude Code on Windows and macOS. It shows your
 sessions live, answers permission prompts, and shows context, plan usage and
 CPU/RAM/GPU as rings.
 
-Built with Tauri 2 (Rust) and Svelte 5. There's no branding yet: no logo, mascot,
-sounds, or Anthropic/Claude brand assets.
+Built with Tauri 2 (Rust) and Svelte 5.
 
-> **Status:** early (v0.1). Developed and tested on Windows 11. macOS code paths
-> exist but haven't been built or tested. No prebuilt releases yet; build from
-> source.
+> **Status:** early (v0.1.x). Developed and tested on Windows 11. macOS code paths
+> exist but haven't been built or tested; releases are Windows-only. See
+> [CHANGELOG.md](CHANGELOG.md) for what changed.
 >
 > clawed is an independent project. It is not affiliated with, endorsed by, or
 > sponsored by Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic.
@@ -45,11 +44,29 @@ Claude Code --stdin--> clawed-hook --local socket--> clawed (Rust) --events--> i
   system meters, installer, tray, window.
 - `ui`: the island and settings windows.
 
-Plan usage comes from Claude Code's status line JSON (`rate_limits`). When
-that isn't available, it's estimated from local transcripts and labeled
-"estimated".
+Plan usage comes from your Claude account's usage endpoint (the same numbers
+`/usage` shows), polled at most every 2 minutes with the OAuth token Claude Code
+stores in `~/.claude/.credentials.json`. The token is only sent to
+api.anthropic.com and is never refreshed by clawed. Claude Code's status line
+JSON (`rate_limits`) is used too when present. When neither is available,
+usage is estimated from local transcripts and labeled "estimated".
 
-## Build
+## Install (Windows)
+
+Download `clawed_<version>_x64-setup.exe` and `SHA256SUMS.txt` from
+[GitHub Releases](https://github.com/joezhuo2/clawed/releases) and check the
+hash before running it:
+
+```powershell
+Get-FileHash .\clawed_0.1.3_x64-setup.exe   # compare with SHA256SUMS.txt
+```
+
+Builds without a code signing certificate trigger SmartScreen ("Windows
+protected your PC"); choose **More info → Run anyway**. There's no auto-update
+yet: install a newer version over the old one. The hook binary lives at a
+stable per-user path, so installed hooks keep working across updates.
+
+## Build from source
 
 Requirements: Rust 1.85+, Node 20+, and the Tauri 2 prerequisites for your OS.
 
@@ -68,8 +85,7 @@ Open **Settings** from the tray and choose **Install hooks…**. You'll see the
 exact diff to `~/.claude/settings.json` before anything is written, and a backup
 is saved next to it. The hook binary is copied to a stable per-user location
 (`%LOCALAPPDATA%\clawed\bin` or `~/Library/Application Support/clawed/bin`).
-If you already have a status line, it's left alone and plan usage falls back
-to the estimate.
+If you already have a status line, it's left alone.
 
 **Uninstall hooks…** removes only clawed's entries. Restart running Claude Code
 sessions after either change.
@@ -77,10 +93,15 @@ sessions after either change.
 ## Tests
 
 ```bash
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace     # proto, hook (spawns the real binary), backend
 npm test                   # frontend helpers
 npm run check              # svelte-check
+npm run check:version      # versions in Cargo.toml, package.json, tauri.conf.json match
 ```
+
+CI (`.github/workflows/ci.yml`) runs all of these on Windows, and on macOS as a
+non-blocking job.
 
 Replay recorded or synthetic hook payloads into a running app:
 
@@ -102,15 +123,18 @@ cargo run -p clawed --bin replay -- fixtures/sample-session.jsonl --speed 2
 - macOS: the island sits below the menu bar; placing it around the notch needs
   an NSPanel (`tauri-nspanel`). The GPU ring shows `--`. The macOS paths
   compile in principle but haven't been built or tested.
-- Windows named pipes: another local process could create the pipe name before
-  clawed starts and receive hook events or answer approvals. That's a low risk
-  on a single-user machine and is planned to be hardened.
+- The local socket is restricted to your user account, not to clawed itself.
+  On Windows the pipe has a DACL for your user only, rejects remote clients,
+  and the hook refuses a server running as another user. Any process running
+  as you can still connect, but such a process can already edit
+  `~/.claude/settings.json`.
 
 ## Privacy
 
-Everything stays on your machine. clawed makes no network requests. The hook
-forwards event metadata (session, tool name, paths, prompts) to the local app
-only, and never forwards file contents from Write/Edit.
+Session data stays on your machine. The hook forwards event metadata (session,
+tool name, paths, prompts) to the local app only, and never forwards file
+contents from Write/Edit. The only network request clawed makes is the usage
+poll to api.anthropic.com described above.
 
 ## Project layout
 
@@ -120,17 +144,20 @@ crates/hook/      clawed-hook binary
 src-tauri/        backend app (Rust)
 ui/               island and settings windows (Svelte)
 fixtures/         synthetic hook payloads for replay
-scripts/          hook build and memory measurement helpers
-docs/             design notes and measurements
+scripts/          hook build, version check, release notes, memory measurement
+docs/             design notes, measurements, release process
+.github/          CI and release workflows
 ```
 
 See [docs/design.md](docs/design.md) for the design and
-[docs/memory.md](docs/memory.md) for memory measurements.
+[docs/memory.md](docs/memory.md) for memory measurements, and
+[docs/releasing.md](docs/releasing.md) for how releases are cut.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please run `cargo test --workspace`,
-`npm test` and `npm run check` before opening a PR.
+Issues and pull requests are welcome. Please run the commands under
+[Tests](#tests) before opening a PR and add an entry under `[Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

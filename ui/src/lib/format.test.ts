@@ -17,6 +17,8 @@ function session(over: Partial<SessionView>): SessionView {
     prompt: null,
     message: null,
     started_at: 0,
+    turn_started_at: 0,
+    turn_ended_at: null,
     last_event_at: 0,
     files_touched: 0,
     steps: [],

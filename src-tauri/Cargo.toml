@@ -33,6 +33,7 @@ sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 dirs = "6"
 similar = "2"
 log = "0.4"
+ureq = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
@@ -41,6 +42,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Threading",
   "Win32_System_Performance",
 ] }
+widestring = "1"
 
 [dev-dependencies]
 tempfile = "3"

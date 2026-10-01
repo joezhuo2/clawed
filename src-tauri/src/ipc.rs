@@ -25,8 +25,24 @@ pub trait Host: Send + Sync + 'static {
 }
 
 /// Accepts connections forever.
+///
+/// On Windows the pipe is created with `FILE_FLAG_FIRST_PIPE_INSTANCE` and
+/// `PIPE_REJECT_REMOTE_CLIENTS` (interprocess defaults), plus a DACL that only
+/// grants the current user. Creation fails if another process already owns
+/// the name.
 pub async fn serve(name: Name<'static>, shared: Arc<Shared>, host: Arc<dyn Host>) -> io::Result<()> {
-    let listener = ListenerOptions::new().name(name).try_overwrite(true).create_tokio()?;
+    let opts = ListenerOptions::new().name(name).try_overwrite(true);
+    #[cfg(windows)]
+    let opts = {
+        use interprocess::os::windows::local_socket::ListenerOptionsExt;
+        use interprocess::os::windows::security_descriptor::SecurityDescriptor;
+        let sddl = widestring::U16CString::from_str(clawed_proto::peer::pipe_sddl()?)
+            .map_err(io::Error::other)?;
+        opts.security_descriptor(SecurityDescriptor::deserialize(&sddl)?)
+    };
+    let listener = opts.create_tokio().map_err(|e| {
+        io::Error::new(e.kind(), format!("cannot create socket (name already taken?): {e}"))
+    })?;
     loop {
         let conn = match listener.accept().await {
             Ok(c) => c,
@@ -46,6 +62,10 @@ pub async fn serve(name: Name<'static>, shared: Arc<Shared>, host: Arc<dyn Host>
 }
 
 async fn handle(conn: Stream, shared: Arc<Shared>, host: Arc<dyn Host>) -> io::Result<()> {
+    if !conn.peer_creds().is_ok_and(|c| clawed_proto::peer::is_same_user(&c)) {
+        log::warn!("ipc: rejected client running as another user");
+        return Ok(());
+    }
     let mut reader = BufReader::new(&conn);
     let mut line = String::new();
     {
@@ -251,6 +271,14 @@ mod tests {
         let mut line = String::new();
         BufReader::new(&conn).read_line(&mut line).await.unwrap();
         assert!(matches!(serde_json::from_str::<AppMsg>(&line).unwrap(), AppMsg::Release { .. }));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn second_server_cannot_squat_name() {
+        let (_shared, name) = start().await;
+        let err = serve(name, Arc::new(Shared::default()), Arc::new(NoHost)).await;
+        assert!(err.is_err());
     }
 
     #[tokio::test]

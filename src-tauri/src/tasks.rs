@@ -17,6 +17,8 @@ const LIVENESS_INTERVAL: Duration = Duration::from_secs(10);
 const CONTEXT_INTERVAL: Duration = Duration::from_secs(2);
 const USAGE_BUSY: Duration = Duration::from_secs(60);
 const USAGE_IDLE: Duration = Duration::from_secs(300);
+/// Minimum gap between account usage requests.
+const USAGE_API_MIN_MS: u64 = 120_000;
 const IDLE_CHECK: Duration = Duration::from_secs(30);
 
 pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
@@ -148,16 +150,38 @@ async fn context(shared: Arc<Shared>) {
     }
 }
 
-fn projects_dir() -> Option<PathBuf> {
-    let base = std::env::var_os("CLAUDE_CONFIG_DIR")
+fn config_dir() -> Option<PathBuf> {
+    std::env::var_os("CLAUDE_CONFIG_DIR")
         .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|h| h.join(".claude")))?;
-    Some(base.join("projects"))
+        .or_else(|| dirs::home_dir().map(|h| h.join(".claude")))
 }
 
-/// Refreshes the local estimate when exact status line data is missing.
+fn projects_dir() -> Option<PathBuf> {
+    Some(config_dir()?.join("projects"))
+}
+
+/// Polls the account usage endpoint, falling back to the local estimate when
+/// neither it nor the status line has fresh data.
 async fn usage(shared: Arc<Shared>) {
+    let mut last_api_error = String::new();
+    let mut last_api_at = 0;
     loop {
+        let due = now_ms().saturating_sub(last_api_at) >= USAGE_API_MIN_MS;
+        let token = due.then(|| config_dir().and_then(|d| crate::oauth::read_token(&d, now_ms()))).flatten();
+        if let Some(token) = token {
+            last_api_at = now_ms();
+            match tokio::task::spawn_blocking(move || crate::oauth::fetch(&token)).await {
+                Ok(Ok(u)) => {
+                    lock(&shared.usage).apply_api(u.five_hour, u.seven_day, now_ms());
+                    last_api_error.clear();
+                }
+                Ok(Err(e)) if e != last_api_error => {
+                    log::warn!("usage endpoint: {e}");
+                    last_api_error = e;
+                }
+                _ => {}
+            }
+        }
         let now = now_ms();
         if !lock(&shared.usage).has_fresh_exact(now) {
             if let Some(root) = projects_dir() {

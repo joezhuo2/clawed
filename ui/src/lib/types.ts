@@ -28,6 +28,8 @@ export interface SessionView {
   prompt: string | null;
   message: string | null;
   started_at: number;
+  turn_started_at: number;
+  turn_ended_at: number | null;
   last_event_at: number;
   files_touched: number;
   steps: Step[];

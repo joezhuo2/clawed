@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 mod strip;
 #[cfg(feature = "ipc")]
+pub mod peer;
+#[cfg(feature = "ipc")]
 pub mod pipe;
 
 pub use strip::{strip_event, strip_status, truncate};

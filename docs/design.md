@@ -14,7 +14,7 @@ Development and testing happen on Windows. macOS code paths are written but veri
 | Hook shipping | Separate tiny `clawed-hook` binary, std + sync `interprocess`, no async runtime |
 | Approvals | `PermissionRequest` hook only (no PreToolUse fallback) |
 | Approval timeout | 60 s in the hook; settings `timeout` 65 s |
-| Usage source | Claude Code status line JSON (`rate_limits.*`, `context_window.*`), local JSONL estimate until the first status line arrives or when it goes stale |
+| Usage source | Account usage endpoint (`/api/oauth/usage`, Claude Code's OAuth token), Claude Code status line JSON (`rate_limits.*`, `context_window.*`), local JSONL estimate until the first status line arrives or when it goes stale |
 | Launch at login | On by default, toggle in tray menu |
 | Low memory mode | On by default, toggle in tray menu. Island window destroyed after 3 min with no Working/WaitingInput/AwaitingApproval session |
 | Collapsed step bar | Most recently active working session |
@@ -46,6 +46,7 @@ clawed/
 Newline-delimited JSON over one connection per hook invocation. Every message carries `v: 1`; the backend drops messages with an unknown `v`.
 
 - Pipe name: `\\.\pipe\clawed-<username>` (Windows), `$TMPDIR/clawed-<uid>.sock` (macOS), via `interprocess` local sockets.
+- Access (`proto::peer`): on Windows the server pipe is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`, `PIPE_REJECT_REMOTE_CLIENTS` and a protected DACL `D:P(A;;GA;;;<user SID>)`. Both ends check the peer: the hook gets the server pid from the pipe and compares its token user SID with its own (on Unix, the peer euid); on mismatch it sends nothing and exits 0. The backend drops clients that fail the same check.
 - `HookMsg::Event(Event)` fire-and-forget.
 - `HookMsg::Approval { id, event }` then the hook reads one line: `AppMsg::Decision { id, behavior: allow | deny }` or `AppMsg::Release { id }` (no decision).
 - `HookMsg::Status(StatusLine)` fire-and-forget, from the status line subcommand.
@@ -78,7 +79,7 @@ Events registered: `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse
 Single-thread tokio runtime (`current_thread` for our tasks; Tauri owns its own main loop).
 
 ### IPC server
-Accepts connections, reads one line, dispatches. Approvals keep the connection open in a pending map `id -> (Approval, writer)`. Shutdown and "Pause approvals" send `Release` to every pending connection.
+Fails to start if another process already owns the socket name (first-instance flag). Accepts connections, rejects other-user peers, reads one line, dispatches. Approvals keep the connection open in a pending map `id -> (Approval, writer)`. Shutdown and "Pause approvals" send `Release` to every pending connection.
 
 ### Session store
 `HashMap<String, Session>` behind `tokio::sync::RwLock`.
@@ -107,7 +108,7 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 ### Meters
 - Context: status line `context_used_pct` when present (source `statusline`). Otherwise tail the transcript with `notify`, byte offset per file, parse only lines containing `"usage"`, compute input + cache read + cache creation over the window size (config map, default 200k, `[1m]` models 1M). Watch only active sessions' transcripts.
 - PreCompact sets `compact_warning_until = now + 10 s`.
-- Usage rings: latest status line `rate_limits` (source `exact`). If none within 10 min, local estimate (source `estimated`): scan `~/.claude/projects/**/*.jsonl` modified within 7 days, cache offsets and per-file hour buckets, sum tokens in 5 h / 7 d windows against user caps from settings. Refresh every 60 s while any session is active, 5 min when idle. Unknown state when neither is available.
+- Usage rings: account usage endpoint, polled at most every 2 min, or latest status line `rate_limits` (source `exact`). If none within 10 min, local estimate (source `estimated`): scan `~/.claude/projects/**/*.jsonl` modified within 7 days, cache offsets and per-file hour buckets, sum tokens in 5 h / 7 d windows against user caps from settings. Refresh every 60 s while any session is active, 5 min when idle. Unknown state when neither is available.
 - `usage-updated` event; tray menu text updated on the same refresh.
 
 ### Window
@@ -168,7 +169,9 @@ CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows 
 - Usage: status line parsing, estimate windows, threshold colors, unknown state, reset rollover.
 - Installer: merge into settings with other hooks, idempotent reinstall, uninstall leaves others untouched, statusLine rules, backup written.
 - `replay` bin: feeds `fixtures/*.jsonl` into the pipe at real or accelerated speed.
-- Manual: window focus, click-through, hover, tray, autostart on Windows.
+- IPC: a second server on the same name fails; peer SID checks for own pid, System pid, SDDL shape.
+- Manual: window focus, click-through, hover, tray, autostart on Windows; fresh-machine install checklist in `docs/releasing.md`.
+- CI (`.github/workflows/ci.yml`): clippy `-D warnings`, `cargo test --workspace`, `npm test`, `npm run check`, version sync, on Windows (blocking) and macOS (non-blocking). Tags `v*` run `release.yml`: NSIS installer, `SHA256SUMS.txt`, draft release.
 
 ## Memory
 

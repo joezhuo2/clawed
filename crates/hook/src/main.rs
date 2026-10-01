@@ -7,7 +7,7 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::time::Duration;
 
 use clawed_proto::{
-    now_ms, pipe, strip_event, strip_status, AppMsg, Behavior, HookMsg, StatusLine,
+    now_ms, peer, pipe, strip_event, strip_status, AppMsg, Behavior, HookMsg, StatusLine,
 };
 use interprocess::local_socket::{prelude::*, Stream};
 use serde_json::Value;
@@ -61,9 +61,13 @@ fn watchdog(after: Duration) {
     });
 }
 
+/// Connects to the app. `None` if the server runs as another user (someone
+/// squatting the socket name), so events and approvals never reach it.
 fn connect() -> Option<Stream> {
     let name = pipe::name().ok()?;
-    Stream::connect(name).ok()
+    let conn = Stream::connect(name).ok()?;
+    let creds = conn.peer_creds().ok()?;
+    peer::is_same_user(&creds).then_some(conn)
 }
 
 fn send(conn: &mut Stream, msg: &HookMsg) -> Option<()> {

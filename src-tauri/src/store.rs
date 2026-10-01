@@ -79,6 +79,10 @@ pub struct Session {
     pub prompt: Option<String>,
     pub message: Option<String>,
     pub started_at: u64,
+    /// Start of the current (or last) turn.
+    pub turn_started_at: u64,
+    /// Set once the turn finishes; the elapsed timer stops here.
+    pub turn_ended_at: Option<u64>,
     pub last_event_at: u64,
     pub steps: VecDeque<Step>,
     pub files: HashSet<String>,
@@ -104,6 +108,8 @@ pub struct SessionView {
     pub prompt: Option<String>,
     pub message: Option<String>,
     pub started_at: u64,
+    pub turn_started_at: u64,
+    pub turn_ended_at: Option<u64>,
     pub last_event_at: u64,
     pub files_touched: usize,
     pub steps: Vec<Step>,
@@ -132,6 +138,8 @@ impl Session {
             prompt: None,
             message: None,
             started_at: ts,
+            turn_started_at: ts,
+            turn_ended_at: None,
             last_event_at: ts,
             steps: VecDeque::with_capacity(STEP_HISTORY),
             files: HashSet::new(),
@@ -140,6 +148,15 @@ impl Session {
             compact_warning_until: None,
             stale_since: None,
         }
+    }
+
+    fn start_turn(&mut self, ts: u64) {
+        self.turn_started_at = ts;
+        self.turn_ended_at = None;
+    }
+
+    fn end_turn(&mut self, ts: u64) {
+        self.turn_ended_at.get_or_insert(ts);
     }
 
     fn push_step(&mut self, step: Step) {
@@ -203,6 +220,8 @@ impl Session {
             prompt: self.prompt.clone(),
             message: self.message.clone(),
             started_at: self.started_at,
+            turn_started_at: self.turn_started_at,
+            turn_ended_at: self.turn_ended_at,
             last_event_at: self.last_event_at,
             files_touched: self.files.len(),
             steps: self.steps.iter().cloned().collect(),
@@ -254,11 +273,16 @@ impl Store {
         match ev.kind.as_str() {
             "SessionStart" => {}
             "UserPromptSubmit" => {
+                s.start_turn(ev.ts);
                 s.state = SessionState::Working;
                 s.prompt = ev.message.clone();
                 s.message = None;
             }
             "PreToolUse" => {
+                // Tool use after a finished turn without a prompt event starts a new turn.
+                if s.turn_ended_at.is_some() {
+                    s.start_turn(ev.ts);
+                }
                 s.state = SessionState::Working;
                 s.message = None;
                 if let Some(tool) = &ev.tool_name {
@@ -291,11 +315,15 @@ impl Store {
             }
             "Stop" => {
                 if ev.agent_id.is_none() {
+                    s.end_turn(ev.ts);
                     s.state = SessionState::Done;
                     s.message = None;
                 }
             }
-            "StopFailure" => s.state = SessionState::Error,
+            "StopFailure" => {
+                s.end_turn(ev.ts);
+                s.state = SessionState::Error;
+            }
             "PreCompact" => s.compact_warning_until = Some(ev.ts + COMPACT_WARNING_MS),
             // SubagentStop, TaskCreated, TaskCompleted: data only.
             _ => {}
@@ -360,6 +388,8 @@ impl Store {
             Some(s) if s.state != SessionState::Stale => {
                 s.state = SessionState::Stale;
                 s.stale_since = Some(now);
+                let last = s.last_event_at;
+                s.end_turn(last);
                 true
             }
             _ => false,
@@ -433,6 +463,24 @@ mod tests {
 
     fn state(store: &Store) -> SessionState {
         store.sessions["s1"].state
+    }
+
+    #[test]
+    fn turn_timer_stops_on_stop() {
+        let mut st = Store::default();
+        let at = |kind: &str, ts: u64| Event { ts, ..ev(kind) };
+        st.apply_event(&at("UserPromptSubmit", 1000));
+        st.apply_event(&Event { tool_name: Some("Read".into()), ..at("PreToolUse", 2000) });
+        let v = st.sessions["s1"].view(5000);
+        assert_eq!((v.turn_started_at, v.turn_ended_at), (1000, None));
+        st.apply_event(&at("Stop", 3000));
+        // A later idle notification does not move the end.
+        st.apply_event(&Event { notification_type: Some("idle_prompt".into()), ..at("Notification", 63_000) });
+        let v = st.sessions["s1"].view(90_000);
+        assert_eq!((v.turn_started_at, v.turn_ended_at), (1000, Some(3000)));
+        st.apply_event(&at("UserPromptSubmit", 100_000));
+        let v = st.sessions["s1"].view(100_000);
+        assert_eq!((v.turn_started_at, v.turn_ended_at), (100_000, None));
     }
 
     #[test]
