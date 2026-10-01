@@ -16,6 +16,9 @@
     <span class="state">{stateLabel(s.state)}</span>
     <span class="elapsed">{formatElapsed((s.turn_ended_at ?? now) - s.turn_started_at)}</span>
   </div>
+  {#if s.narration}
+    <div class="say" title={s.narration}>{s.narration}</div>
+  {/if}
   <div class="step" title={stepText(s)}>{stepText(s) || " "}</div>
   <div class="meters">
     {#if s.todos_total > 0}
@@ -69,6 +72,23 @@
     color: var(--island-muted);
     font-variant-numeric: tabular-nums;
   }
+  .say {
+    margin: 4px 0 0 15px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--island-text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .say + .step {
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--island-muted);
+  }
   .step {
     margin: 4px 0 6px 15px;
     font-size: 12px;
@@ -114,7 +134,7 @@
     background: var(--state-working);
   }
   .ctx-ok {
-    background: var(--ring-ok);
+    background: var(--meter-ctx);
   }
   .ctx-warn {
     background: var(--ring-warn);

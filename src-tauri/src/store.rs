@@ -77,6 +77,8 @@ pub struct Session {
     pub context: Option<ContextMeter>,
     pub model: Option<String>,
     pub prompt: Option<String>,
+    /// Claude's latest text in this turn, from the transcript.
+    pub narration: Option<String>,
     pub message: Option<String>,
     pub started_at: u64,
     /// Start of the current (or last) turn.
@@ -106,6 +108,7 @@ pub struct SessionView {
     pub compact_warning: bool,
     pub model: Option<String>,
     pub prompt: Option<String>,
+    pub narration: Option<String>,
     pub message: Option<String>,
     pub started_at: u64,
     pub turn_started_at: u64,
@@ -136,6 +139,7 @@ impl Session {
             context: None,
             model: None,
             prompt: None,
+            narration: None,
             message: None,
             started_at: ts,
             turn_started_at: ts,
@@ -218,6 +222,7 @@ impl Session {
             compact_warning: self.compact_warning_until.is_some_and(|t| t > now),
             model: self.model.clone(),
             prompt: self.prompt.clone(),
+            narration: self.narration.clone(),
             message: self.message.clone(),
             started_at: self.started_at,
             turn_started_at: self.turn_started_at,
@@ -276,6 +281,7 @@ impl Store {
                 s.start_turn(ev.ts);
                 s.state = SessionState::Working;
                 s.prompt = ev.message.clone();
+                s.narration = None;
                 s.message = None;
             }
             "PreToolUse" => {
@@ -383,6 +389,16 @@ impl Store {
         changed
     }
 
+    /// Claude's latest text from the transcript tailer.
+    pub fn apply_narration(&mut self, id: &str, text: String) -> bool {
+        let Some(s) = self.sessions.get_mut(id) else { return false };
+        if s.narration.as_ref() == Some(&text) {
+            return false;
+        }
+        s.narration = Some(text);
+        true
+    }
+
     pub fn mark_stale(&mut self, id: &str, now: u64) -> bool {
         match self.sessions.get_mut(id) {
             Some(s) if s.state != SessionState::Stale => {
@@ -481,6 +497,18 @@ mod tests {
         st.apply_event(&at("UserPromptSubmit", 100_000));
         let v = st.sessions["s1"].view(100_000);
         assert_eq!((v.turn_started_at, v.turn_ended_at), (100_000, None));
+    }
+
+    #[test]
+    fn narration_cleared_on_new_prompt() {
+        let mut st = Store::default();
+        st.apply_event(&ev("UserPromptSubmit"));
+        assert!(st.apply_narration("s1", "Running tests.".into()));
+        assert!(!st.apply_narration("s1", "Running tests.".into()));
+        assert_eq!(st.sessions["s1"].view(0).narration.as_deref(), Some("Running tests."));
+        st.apply_event(&ev("UserPromptSubmit"));
+        assert_eq!(st.sessions["s1"].view(0).narration, None);
+        assert!(!st.apply_narration("nope", "x".into()));
     }
 
     #[test]

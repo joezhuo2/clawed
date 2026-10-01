@@ -17,11 +17,14 @@ Built with Tauri 2 (Rust) and Svelte 5.
 ## What it shows
 
 - **Collapsed pill:** one dot per session colored by state, a todo progress bar
-  for the most recently active session, and two mini rings (outer 7-day, inner
-  5-hour plan usage).
-- **Expanded (hover):** per-session rows with the current step, todo progress,
-  context window meter, files touched and elapsed time; 5-hour and 7-day rings
-  with reset countdowns; CPU, RAM and GPU rings.
+  for the most recently active session, and three mini rings: CPU (inner) and
+  RAM (outer), GPU, then 7-day (outer) and 5-hour (inner) plan usage.
+- **Expanded (hover):** per-session rows with Claude's latest message, the
+  current tool step, todo progress, context window meter, files touched and
+  elapsed time; 5-hour and 7-day rings with reset countdowns; CPU, RAM and GPU
+  rings.
+- **Colors:** state, ring, context and warn/critical colors are set under
+  **Colors** in Settings.
 - **Approvals:** permission requests expand the island with Allow / Deny. If
   you don't answer within 60 s, Claude Code falls back to its normal prompt.
 - **Tray menu:** usage, sessions, pause approvals, launch at login, low memory
@@ -59,7 +62,7 @@ Download `clawed_<version>_x64-setup.exe` and `SHA256SUMS.txt` from
 hash before running it:
 
 ```powershell
-Get-FileHash .\clawed_0.1.5_x64-setup.exe   # compare with SHA256SUMS.txt
+Get-FileHash .\clawed_0.2.0_x64-setup.exe   # compare with SHA256SUMS.txt
 ```
 
 Releases aren't code signed yet, so SmartScreen shows "Windows protected your

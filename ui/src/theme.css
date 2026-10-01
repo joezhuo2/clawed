@@ -21,8 +21,16 @@
   --state-error: #ff453a;
   --state-stale: #636366;
 
-  /* Ring thresholds */
-  --ring-ok: #e5e5ea;
+  /* Meters below the warn threshold. These and the state colors are
+     overridden at runtime from the user's color settings. */
+  --meter-5h: #e5e5ea;
+  --meter-7d: #e5e5ea;
+  --meter-cpu: #64d2ff;
+  --meter-ram: #5e5ce6;
+  --meter-gpu: #66d4cf;
+  --meter-ctx: #e5e5ea;
+
+  /* Every meter above the warn / critical thresholds */
   --ring-warn: #ffb340;
   --ring-crit: #ff453a;
 
@@ -34,7 +42,7 @@
 
   /* Geometry (must match WIDTH / pill constants in src-tauri/src/window.rs) */
   --top-gap: 6px;
-  --pill-w: 200px;
+  --pill-w: 260px;
   --pill-h: 34px;
   --panel-w: 400px;
   --panel-radius: 22px;

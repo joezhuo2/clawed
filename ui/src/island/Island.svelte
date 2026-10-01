@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { onMount, untrack } from "svelte";
+  import { COLOR_VARS } from "../lib/format";
   import type { Snapshot, SystemView } from "../lib/types";
   import ApprovalCard from "./ApprovalCard.svelte";
   import Header from "./Header.svelte";
@@ -30,6 +31,16 @@
   const approvals = $derived(snap?.approvals ?? []);
   const pinned = $derived(approvals.length > 0 || waiting.length > 0);
   const wantOpen = $derived(hovered || pinned);
+
+  // User colors override the theme defaults on :root.
+  $effect(() => {
+    const colors = snap?.colors;
+    if (!colors) return;
+    const root = document.documentElement.style;
+    for (const [key, cssVar] of Object.entries(COLOR_VARS)) {
+      root.setProperty(cssVar, colors[key as keyof typeof COLOR_VARS]);
+    }
+  });
 
   let generation = 0;
 
@@ -125,7 +136,7 @@
 </script>
 
 <div class="island" class:expanded bind:this={islandEl}>
-  <Header {snap} />
+  <Header {snap} {system} />
   {#if showPanel && snap}
     <div class="panel">
       {#if approvals.length > 0}

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { pickPrimary, stateColorVar } from "../lib/format";
-  import type { Snapshot } from "../lib/types";
+  import type { Snapshot, SystemView } from "../lib/types";
   import Ring from "./Ring.svelte";
 
-  let { snap }: { snap: Snapshot | null } = $props();
+  let { snap, system }: { snap: Snapshot | null; system: SystemView | null } = $props();
 
   const MAX_DOTS = 5;
   const sessions = $derived(snap?.sessions ?? []);
@@ -31,10 +31,19 @@
     {/if}
   </div>
 
-  <svg class="rings" viewBox="0 0 24 24" aria-hidden="true">
-    <Ring ring={snap?.usage.seven_day ?? null} r={10} stroke={2.4} cx={12} cy={12} />
-    <Ring ring={snap?.usage.five_hour ?? null} r={5.8} stroke={2.4} cx={12} cy={12} />
-  </svg>
+  <div class="rings">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <Ring ring={system?.ram ?? null} color="var(--meter-ram)" r={10} stroke={2.4} cx={12} cy={12} />
+      <Ring ring={system?.cpu ?? null} color="var(--meter-cpu)" r={5.8} stroke={2.4} cx={12} cy={12} />
+    </svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <Ring ring={system?.gpu ?? null} color="var(--meter-gpu)" r={8} stroke={2.8} cx={12} cy={12} />
+    </svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <Ring ring={snap?.usage.seven_day ?? null} color="var(--meter-7d)" r={10} stroke={2.4} cx={12} cy={12} />
+      <Ring ring={snap?.usage.five_hour ?? null} color="var(--meter-5h)" r={5.8} stroke={2.4} cx={12} cy={12} />
+    </svg>
+  </div>
 </div>
 
 <style>
@@ -99,10 +108,15 @@
     font-variant-numeric: tabular-nums;
     color: var(--island-text);
   }
+  /* Left to right: CPU (inner) / RAM (outer), GPU, 5 h (inner) / 7 d (outer). */
   .rings {
-    width: 22px;
-    height: 22px;
+    display: flex;
+    gap: 6px;
     flex: none;
     margin-left: auto;
+  }
+  .rings svg {
+    width: 22px;
+    height: 22px;
   }
 </style>

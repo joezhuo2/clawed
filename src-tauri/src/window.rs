@@ -20,7 +20,7 @@ pub const WIDTH: f64 = 420.0;
 /// Collapsed window height; the UI draws the pill inside it.
 pub const COLLAPSED_H: f64 = 48.0;
 /// Pill geometry, must match theme.css (--pill-w, --pill-h, --top-gap).
-const PILL_W: f64 = 200.0;
+const PILL_W: f64 = 260.0;
 const PILL_H: f64 = 34.0;
 const TOP_GAP: f64 = 6.0;
 const HOVER_POLL: Duration = Duration::from_millis(80);

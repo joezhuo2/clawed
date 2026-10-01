@@ -7,6 +7,24 @@ change behavior.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-01
+
+### Added
+
+- Session rows show Claude's latest message from the transcript above the
+  current tool step, so you can see what it is doing, not just the command.
+- Configurable colors under **Colors** in Settings: working, finished,
+  errored, approval request, the 5-hour, 7-day, CPU, RAM and GPU rings, the
+  context bar, and shared colors for any meter above the warn (70%) and
+  critical (90%) thresholds.
+- Collapsed pill rings for CPU (inner) / RAM (outer) and GPU, left of the
+  plan usage ring. The pill is 260 px wide.
+
+### Changed
+
+- System meters are sampled while the island exists (every 3 s collapsed,
+  1.5 s expanded) instead of only while expanded.
+
 ## [0.1.5] - 2026-10-01
 
 ### Added
@@ -146,7 +164,8 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/joezhuo2/clawed/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/joezhuo2/clawed/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/joezhuo2/clawed/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/joezhuo2/clawed/compare/v0.1.2...v0.1.3

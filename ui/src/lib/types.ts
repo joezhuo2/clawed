@@ -26,6 +26,8 @@ export interface SessionView {
   compact_warning: boolean;
   model: string | null;
   prompt: string | null;
+  /** Claude's latest text this turn, from the transcript. */
+  narration: string | null;
   message: string | null;
   started_at: number;
   turn_started_at: number;
@@ -71,7 +73,24 @@ export interface Snapshot {
   approvals: ApprovalView[];
   usage: UsageView;
   paused: boolean;
+  colors: Colors;
   now: number;
+}
+
+/** `#rrggbb` values; mirrors `Colors` in src-tauri/src/settings.rs. */
+export interface Colors {
+  working: string;
+  done: string;
+  error: string;
+  request: string;
+  five_hour: string;
+  seven_day: string;
+  cpu: string;
+  ram: string;
+  gpu: string;
+  ctx: string;
+  warn: string;
+  crit: string;
 }
 
 export interface Settings {
@@ -84,6 +103,7 @@ export interface Settings {
   first_run_done: boolean;
   hooks_notice_shown: boolean;
   check_updates: boolean;
+  colors: Colors;
 }
 
 export interface InstallerStatus {

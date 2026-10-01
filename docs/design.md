@@ -152,17 +152,18 @@ Single instance via `tauri-plugin-single-instance`.
 
 Svelte 5, no component libraries. `theme.css` holds every color and dimension as CSS variables.
 
-- Collapsed pill (black, fully rounded): one dot per session colored by state, step bar with `3/7` for the most recently active working session (hidden when none), two concentric mini rings (outer 7 d, inner 5 h).
-- Expanded: rows with repo, state, current step, todo bar, context meter (flashes on compaction warning), elapsed time; full rings with percent, reset countdown, and an "estimated" label when applicable; a second row of CPU / RAM / GPU rings in the same style.
+- Collapsed pill (black, fully rounded, 260 px): one dot per session colored by state, step bar with `3/7` for the most recently active working session (hidden when none), then three mini rings: CPU (inner) / RAM (outer), GPU, 5 h (inner) / 7 d (outer).
+- Expanded: rows with repo, state, Claude's latest text (last `text` block of the newest main-thread assistant transcript line, whitespace collapsed, 200 chars, two lines; cleared on a new prompt), current step, todo bar, context meter (flashes on compaction warning), elapsed time; full rings with percent, reset countdown, and an "estimated" label when applicable; a second row of CPU / RAM / GPU rings in the same style.
 - Approval card: tool, summary, Allow / Deny. Auto-expands, stays open until answered or released, queue shown as `1 of 3`.
 - WaitingInput sessions also auto-expand, showing the notification message.
 - Transitions: the shape animates with `clip-path` (compositor-friendly, no layout), content fades with opacity. Collapse starts immediately when the cursor leaves; re-entering mid-collapse reverses.
 - No timers while collapsed. Elapsed and countdown tick once per second only while expanded.
 - State colors: working blue, waiting amber, approval violet, done green, error red, stale gray.
+- User colors (`colors` in settings, `#rrggbb`, anything else falls back to the default): working, done, error, approval request, each ring (5 h, 7 d, CPU, RAM, GPU), context bar, and the shared warn / critical colors every meter switches to above the thresholds. Sent in each snapshot and written over the `theme.css` variables on `:root`.
 
 ## System meters
 
-CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows via PDH `\GPU Engine(*)\Utilization Percentage`, summed per engine type and taking the busiest type (Task Manager's method). macOS GPU via IOKit: every `IOAccelerator` service's `PerformanceStatistics` dictionary, key `Device Utilization %` (what Activity Monitor shows), taking the busiest GPU. Sampling runs every 1.5 s only while the island is expanded; the sampler and its PDH query are dropped on collapse. Emitted as a separate `system` event so the tray is never rebuilt for it.
+CPU and RAM via `sysinfo` (global CPU usage, used/total memory). GPU on Windows via PDH `\GPU Engine(*)\Utilization Percentage`, summed per engine type and taking the busiest type (Task Manager's method). macOS GPU via IOKit: every `IOAccelerator` service's `PerformanceStatistics` dictionary, key `Device Utilization %` (what Activity Monitor shows), taking the busiest GPU. Sampling runs while the island window exists, every 1.5 s expanded and every 3 s collapsed (for the pill rings); the sampler and its PDH query are dropped when low memory mode tears the window down. Emitted as a separate `system` event so the tray is never rebuilt for it.
 
 ## Testing
 

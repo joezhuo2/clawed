@@ -15,6 +15,7 @@ function session(over: Partial<SessionView>): SessionView {
     compact_warning: false,
     model: null,
     prompt: null,
+    narration: null,
     message: null,
     started_at: 0,
     turn_started_at: 0,

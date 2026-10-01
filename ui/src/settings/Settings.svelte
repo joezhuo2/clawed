@@ -1,7 +1,23 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import type { InstallerStatus, Settings } from "../lib/types";
+  import { DEFAULT_COLORS } from "../lib/format";
+  import type { Colors, InstallerStatus, Settings } from "../lib/types";
+
+  const COLOR_LABELS: [keyof Colors, string][] = [
+    ["working", "Working"],
+    ["done", "Finished"],
+    ["error", "Errored"],
+    ["request", "Approval request"],
+    ["five_hour", "5-hour limit"],
+    ["seven_day", "7-day limit"],
+    ["cpu", "CPU"],
+    ["ram", "RAM"],
+    ["gpu", "GPU"],
+    ["ctx", "Context"],
+    ["warn", "Any ring at warn"],
+    ["crit", "Any ring at critical"],
+  ];
 
   let status = $state<InstallerStatus | null>(null);
   let settings = $state<Settings | null>(null);
@@ -158,6 +174,25 @@
     </section>
 
     <section>
+      <h2>Colors</h2>
+      <div class="colors">
+        {#each COLOR_LABELS as [key, label] (key)}
+          <label class="color">
+            <input type="color" bind:value={settings.colors[key]} />
+            {label}
+          </label>
+        {/each}
+      </div>
+      <p class="muted">
+        Ring and bar colors apply below the warn threshold ({settings.thresholds.warn}%). Above it every ring, including
+        context, uses the warn color, and above {settings.thresholds.crit}% the critical color.
+      </p>
+      <div class="buttons">
+        <button class="secondary" onclick={() => settings && (settings.colors = { ...DEFAULT_COLORS })}>Reset colors</button>
+      </div>
+    </section>
+
+    <section>
       <h2>Context window overrides</h2>
       <p class="muted">One per line: part of a model id, then the window size. Example: <code>opus=1000000</code></p>
       <textarea rows="3" bind:value={overridesText}></textarea>
@@ -288,6 +323,25 @@
   }
   input.num {
     width: 56px;
+  }
+  .colors {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px 12px;
+  }
+  label.color {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type="color"] {
+    width: 32px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
   }
   textarea {
     width: 100%;

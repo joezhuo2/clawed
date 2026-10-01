@@ -6,7 +6,7 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use crate::transcript::{parse_line, UsageLine};
+use crate::transcript::{parse_line, parse_text, UsageLine};
 
 /// Bytes read per call, so a huge backlog never lands in memory at once.
 const READ_CHUNK: u64 = 4 * 1024 * 1024;
@@ -67,15 +67,24 @@ pub struct ContextTailer {
     files: HashMap<PathBuf, (FileTail, Option<UsageLine>)>,
 }
 
+/// Result of one poll.
+#[derive(Debug, Default)]
+pub struct TailPoll {
+    /// Latest main-thread usage seen so far.
+    pub usage: Option<UsageLine>,
+    /// Newest assistant text among the lines read by this poll only.
+    pub text: Option<String>,
+}
+
 impl ContextTailer {
-    /// Reads appended lines and returns the latest main-thread usage, if any.
-    pub fn poll(&mut self, path: &Path) -> Option<UsageLine> {
+    /// Reads appended lines: latest main-thread usage and newest assistant text.
+    pub fn poll(&mut self, path: &Path) -> TailPoll {
         let (tail, latest) = self.files.entry(path.to_path_buf()).or_default();
-        let lines = tail.read_all_new(path).ok()?;
+        let lines = tail.read_all_new(path).unwrap_or_default();
         if let Some(u) = lines.iter().rev().filter_map(|l| parse_line(l)).find(|u| !u.sidechain) {
             *latest = Some(u);
         }
-        latest.clone()
+        TailPoll { usage: latest.clone(), text: lines.iter().rev().find_map(|l| parse_text(l)) }
     }
 
     /// Stops tracking transcripts not in `keep`.
@@ -222,9 +231,9 @@ mod tests {
         let side = usage_line("m2", "2026-09-30T10:00:01Z", 9).replace(r#""type":"assistant""#, r#""type":"assistant","isSidechain":true"#);
         std::fs::write(&p, format!("{main}\n{side}\n")).unwrap();
         let mut ct = ContextTailer::default();
-        assert_eq!(ct.poll(&p).unwrap().context_tokens(), 5000);
+        assert_eq!(ct.poll(&p).usage.unwrap().context_tokens(), 5000);
         // No new lines: latest value is remembered.
-        assert_eq!(ct.poll(&p).unwrap().context_tokens(), 5000);
+        assert_eq!(ct.poll(&p).usage.unwrap().context_tokens(), 5000);
     }
 
     #[test]

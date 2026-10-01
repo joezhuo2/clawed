@@ -8,10 +8,11 @@
     stroke,
     cx,
     cy,
-  }: { ring: Ring | null; r: number; stroke: number; cx: number; cy: number } = $props();
+    color,
+  }: { ring: Ring | null; r: number; stroke: number; cx: number; cy: number; color: string } = $props();
 
   const dash = $derived(ringDash(ring?.pct ?? 0, r));
-  const color = $derived(ring ? `var(--ring-${ring.level})` : "transparent");
+  const stroke_ = $derived(!ring ? "transparent" : ring.level === "ok" ? color : `var(--ring-${ring.level})`);
 </script>
 
 <circle {cx} {cy} {r} fill="none" stroke="var(--island-track)" stroke-width={stroke} />
@@ -21,7 +22,7 @@
   {cy}
   {r}
   fill="none"
-  stroke={color}
+  stroke={stroke_}
   stroke-width={stroke}
   stroke-linecap="round"
   stroke-dasharray={dash.circumference}

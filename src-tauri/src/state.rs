@@ -10,7 +10,7 @@ use serde::Serialize;
 use tokio::sync::Notify;
 
 use crate::approvals::{ApprovalView, Approvals};
-use crate::settings::Settings;
+use crate::settings::{Colors, Settings};
 use crate::store::{SessionView, Store};
 use crate::tailer::{ContextTailer, EstimateScanner};
 use crate::usage::{Usage, UsageView};
@@ -50,6 +50,7 @@ pub struct Snapshot {
     pub approvals: Vec<ApprovalView>,
     pub usage: UsageView,
     pub paused: bool,
+    pub colors: Colors,
     pub now: u64,
 }
 
@@ -76,9 +77,9 @@ impl Shared {
 
     pub fn snapshot(&self) -> Snapshot {
         let now = now_ms();
-        let (thresholds, caps) = {
+        let (thresholds, caps, colors) = {
             let s = lock(&self.settings);
-            (s.thresholds, s.caps)
+            (s.thresholds, s.caps, s.colors.clone())
         };
         let approvals = lock(&self.approvals);
         Snapshot {
@@ -86,6 +87,7 @@ impl Shared {
             approvals: approvals.views(),
             paused: approvals.paused,
             usage: lock(&self.usage).view(now, thresholds, caps),
+            colors,
             now,
         }
     }

@@ -3,9 +3,6 @@
 Items gathered from the README, `docs/design.md`, `docs/memory.md` and the repo
 state as of v0.1.2. Ordered roughly by priority within each section.
 
-- instead of only showing the command used by claude, also show its latest actual instruction, so that users know what claude is doing
-- configurable clors
-
 ## Blockers
 
 - [ ] **Prebuilt release artifacts.** No GitHub release exists yet. Produce a
@@ -44,11 +41,12 @@ state as of v0.1.2. Ordered roughly by priority within each section.
 - [ ] Real app icon. `src-tauri/icons` are placeholders from
       `make_placeholder.py` (white capsule on gray). Regenerate all sizes with
       `npx tauri icon`.
+- [ ] Check name and wording against Anthropic trademark guidance ("clawed",
+      "for Claude Code"); keep the non-affiliation notice.
+
 - [ ] Final tray glyphs (idle / working / approval).
 - [ ] Screenshot or short GIF of the pill, expanded view and approval card for
       the README.
-- [ ] Check name and wording against Anthropic trademark guidance ("clawed",
-      "for Claude Code"); keep the non-affiliation notice.
 
 ## Robustness
 

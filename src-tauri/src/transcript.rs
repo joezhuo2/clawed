@@ -1,4 +1,5 @@
-//! Minimal parsing of Claude Code transcript JSONL lines: just `usage`.
+//! Minimal parsing of Claude Code transcript JSONL lines: `usage` and the
+//! assistant's latest text (what Claude says it is doing).
 
 use serde::Deserialize;
 
@@ -79,6 +80,44 @@ pub fn parse_line(line: &str) -> Option<UsageLine> {
     })
 }
 
+const NARRATION_MAX: usize = 200;
+
+#[derive(Deserialize)]
+struct TextLine {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    #[serde(rename = "isSidechain", default)]
+    sidechain: bool,
+    message: Option<TextMessage>,
+}
+
+#[derive(Deserialize)]
+struct TextMessage {
+    #[serde(default)]
+    content: serde_json::Value,
+}
+
+/// Last text block of a main-thread assistant line, whitespace collapsed and
+/// truncated. Subagent (sidechain) text is skipped.
+pub fn parse_text(line: &str) -> Option<String> {
+    if !line.contains("\"text\"") {
+        return None;
+    }
+    let raw: TextLine = serde_json::from_str(line).ok()?;
+    if raw.kind.as_deref() != Some("assistant") || raw.sidechain {
+        return None;
+    }
+    let content = raw.message?.content;
+    let text = content
+        .as_array()?
+        .iter()
+        .rev()
+        .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
+        .find_map(|b| b.get("text").and_then(|t| t.as_str()))?;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    (!text.is_empty()).then(|| clawed_proto::truncate(&text, NARRATION_MAX))
+}
+
 /// Parses `YYYY-MM-DDTHH:MM:SS[.fff]Z` to Unix milliseconds.
 pub fn parse_iso_ms(s: &str) -> Option<u64> {
     let b = s.as_bytes();
@@ -153,6 +192,17 @@ mod tests {
         assert!(parse_line(r#"{"type":"user","message":{"content":"hi"}}"#).is_none());
         assert!(parse_line(r#"{"type":"user","message":{"usage":{}}}"#).is_none());
         assert!(parse_line("garbage \"usage\"").is_none());
+    }
+
+    #[test]
+    fn text_from_assistant_only() {
+        let a = r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Let me\n  run the tests."},{"type":"tool_use","name":"Bash"}]}}"#;
+        assert_eq!(parse_text(a).as_deref(), Some("Let me run the tests."));
+        let side = a.replace(r#""type":"assistant""#, r#""type":"assistant","isSidechain":true"#);
+        assert!(parse_text(&side).is_none());
+        assert!(parse_text(r#"{"type":"user","message":{"content":[{"type":"text","text":"hi"}]}}"#).is_none());
+        assert!(parse_text(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"  "}]}}"#).is_none());
+        assert!(parse_text(LINE).is_none());
     }
 
     #[test]

@@ -54,16 +54,18 @@ async fn updates(shared: Arc<Shared>) {
     }
 }
 
-const SYSTEM_INTERVAL: Duration = Duration::from_millis(1500);
+const SYSTEM_EXPANDED: Duration = Duration::from_millis(1500);
+const SYSTEM_COLLAPSED: Duration = Duration::from_secs(3);
 
-/// Samples CPU/RAM/GPU only while the island is expanded.
+/// Samples CPU/RAM/GPU while the island window exists: every 1.5 s expanded
+/// (footer gauges), every 3 s collapsed (pill rings).
 async fn system(app: AppHandle, shared: Arc<Shared>) {
     let mut sampler: Option<crate::system::Sampler> = None;
     loop {
-        if !shared.expanded.load(Ordering::Relaxed) {
-            // Drop the sampler (and its PDH query) while collapsed.
+        if crate::window::get(&app).is_none() {
+            // Drop the sampler (and its PDH query) while the island is torn down.
             sampler = None;
-            shared.expanded_changed.notified().await;
+            tokio::time::sleep(SYSTEM_COLLAPSED).await;
             continue;
         }
         let s = sampler.get_or_insert_with(crate::system::Sampler::new);
@@ -72,8 +74,9 @@ async fn system(app: AppHandle, shared: Arc<Shared>) {
         tokio::time::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
         let view = s.sample(thresholds);
         let _ = app.emit_to(crate::window::LABEL, "system", &view);
+        let interval = if shared.expanded.load(Ordering::Relaxed) { SYSTEM_EXPANDED } else { SYSTEM_COLLAPSED };
         tokio::select! {
-            _ = tokio::time::sleep(SYSTEM_INTERVAL) => {}
+            _ = tokio::time::sleep(interval) => {}
             _ = shared.expanded_changed.notified() => {}
         }
     }
@@ -121,7 +124,8 @@ async fn liveness(shared: Arc<Shared>) {
     }
 }
 
-/// Re-reads transcripts of sessions that had events, for context usage.
+/// Re-reads transcripts of sessions that had events, for context usage and
+/// Claude's latest text.
 async fn context(shared: Arc<Shared>) {
     loop {
         tokio::time::sleep(CONTEXT_INTERVAL).await;
@@ -150,10 +154,13 @@ async fn context(shared: Arc<Shared>) {
             targets
                 .into_iter()
                 .filter_map(|(id, path, model)| {
-                    let u = tailer.poll(&path)?;
-                    let model = model.or(u.model.clone()).unwrap_or_default();
-                    let tokens = u.context_tokens();
-                    Some((id, tokens, effective_window(tokens, window_for_model(&model, &overrides))))
+                    let poll = tailer.poll(&path);
+                    let ctx = poll.usage.map(|u| {
+                        let model = model.or(u.model.clone()).unwrap_or_default();
+                        let tokens = u.context_tokens();
+                        (tokens, effective_window(tokens, window_for_model(&model, &overrides)))
+                    });
+                    (ctx.is_some() || poll.text.is_some()).then_some((id, ctx, poll.text))
                 })
                 .collect::<Vec<_>>()
         })
@@ -164,8 +171,13 @@ async fn context(shared: Arc<Shared>) {
         let mut changed = false;
         {
             let mut store = lock(&shared.store);
-            for (id, tokens, window) in results {
-                changed |= store.apply_transcript_context(&id, tokens, window, now);
+            for (id, ctx, text) in results {
+                if let Some((tokens, window)) = ctx {
+                    changed |= store.apply_transcript_context(&id, tokens, window, now);
+                }
+                if let Some(text) = text {
+                    changed |= store.apply_narration(&id, text);
+                }
             }
         }
         if changed {

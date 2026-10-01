@@ -66,6 +66,7 @@ pub fn save_settings(shared: Shr, settings: Settings) -> Result<(), String> {
         pause_approvals: cur.pause_approvals,
         first_run_done: cur.first_run_done,
         hooks_notice_shown: cur.hooks_notice_shown,
+        colors: settings.colors.clone().sanitized(),
         ..settings
     };
     merged.save(&shared.settings_path).map_err(|e| e.to_string())?;

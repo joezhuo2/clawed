@@ -8,6 +8,7 @@
   interface Item {
     label: string;
     ring: RingT | null;
+    color: string;
     /** Optional third line under the label. */
     extra?: string;
   }
@@ -19,15 +20,16 @@
   }
 
   const items = $derived<Item[]>([
-    { label: "5-hour", ring: usage.five_hour, extra: resetText(usage.five_hour) },
-    { label: "7-day", ring: usage.seven_day, extra: resetText(usage.seven_day) },
-    { label: "CPU", ring: system?.cpu ?? null },
+    { label: "5-hour", ring: usage.five_hour, color: "var(--meter-5h)", extra: resetText(usage.five_hour) },
+    { label: "7-day", ring: usage.seven_day, color: "var(--meter-7d)", extra: resetText(usage.seven_day) },
+    { label: "CPU", ring: system?.cpu ?? null, color: "var(--meter-cpu)" },
     {
       label: "RAM",
       ring: system?.ram ?? null,
+      color: "var(--meter-ram)",
       extra: system ? `${system.ram_used_gb.toFixed(1)}/${Math.round(system.ram_total_gb)}G` : "",
     },
-    { label: "GPU", ring: system?.gpu ?? null },
+    { label: "GPU", ring: system?.gpu ?? null, color: "var(--meter-gpu)" },
   ]);
 </script>
 
@@ -35,7 +37,7 @@
   <div class="item">
     <div class="gauge">
       <svg viewBox="0 0 36 36" aria-hidden="true">
-        <Ring ring={it.ring} r={15} stroke={3.5} cx={18} cy={18} />
+        <Ring ring={it.ring} color={it.color} r={15} stroke={3.5} cx={18} cy={18} />
       </svg>
       <div class="pct">{it.ring ? `${Math.round(it.ring.pct)}%` : "--"}</div>
     </div>

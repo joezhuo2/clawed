@@ -24,6 +24,74 @@ pub struct Settings {
     pub hooks_notice_shown: bool,
     /// Ask GitHub once a day whether a newer release exists.
     pub check_updates: bool,
+    pub colors: Colors,
+}
+
+/// Island colors as `#rrggbb`. Ring and bar colors apply below the warn
+/// threshold; `warn` and `crit` replace them above it, for every meter.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Colors {
+    pub working: String,
+    pub done: String,
+    pub error: String,
+    /// Approval requests.
+    pub request: String,
+    pub five_hour: String,
+    pub seven_day: String,
+    pub cpu: String,
+    pub ram: String,
+    pub gpu: String,
+    pub ctx: String,
+    pub warn: String,
+    pub crit: String,
+}
+
+impl Default for Colors {
+    fn default() -> Self {
+        let c = |s: &str| s.to_string();
+        Self {
+            working: c("#4c8dff"),
+            done: c("#34c759"),
+            error: c("#ff453a"),
+            request: c("#a970ff"),
+            five_hour: c("#e5e5ea"),
+            seven_day: c("#e5e5ea"),
+            cpu: c("#64d2ff"),
+            ram: c("#5e5ce6"),
+            gpu: c("#66d4cf"),
+            ctx: c("#e5e5ea"),
+            warn: c("#ffb340"),
+            crit: c("#ff453a"),
+        }
+    }
+}
+
+fn is_hex_color(s: &str) -> bool {
+    s.len() == 7 && s.starts_with('#') && s[1..].bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+impl Colors {
+    /// Replaces anything that is not `#rrggbb` with its default, so values
+    /// written into CSS can never carry anything but a color.
+    pub fn sanitized(self) -> Self {
+        let d = Colors::default();
+        let pick = |v: String, d: String| if is_hex_color(&v) { v.to_ascii_lowercase() } else { d };
+        Self {
+            working: pick(self.working, d.working),
+            done: pick(self.done, d.done),
+            error: pick(self.error, d.error),
+            request: pick(self.request, d.request),
+            five_hour: pick(self.five_hour, d.five_hour),
+            seven_day: pick(self.seven_day, d.seven_day),
+            cpu: pick(self.cpu, d.cpu),
+            ram: pick(self.ram, d.ram),
+            gpu: pick(self.gpu, d.gpu),
+            ctx: pick(self.ctx, d.ctx),
+            warn: pick(self.warn, d.warn),
+            crit: pick(self.crit, d.crit),
+        }
+    }
 }
 
 impl Default for Settings {
@@ -38,6 +106,7 @@ impl Default for Settings {
             first_run_done: false,
             hooks_notice_shown: false,
             check_updates: true,
+            colors: Colors::default(),
         }
     }
 }
@@ -53,10 +122,11 @@ pub fn settings_path() -> PathBuf {
 impl Settings {
     /// Missing or unreadable files give defaults.
     pub fn load(path: &Path) -> Self {
-        std::fs::read(path)
+        let s: Self = std::fs::read(path)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        Self { colors: s.colors.clone().sanitized(), ..s }
     }
 
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
@@ -87,6 +157,15 @@ mod tests {
     }
 
     #[test]
+    fn bad_colors_fall_back() {
+        let c = Colors { cpu: "#ABCDEF".into(), ram: "red;}".into(), gpu: "#12345".into(), ..Colors::default() };
+        let c = c.sanitized();
+        assert_eq!(c.cpu, "#abcdef");
+        assert_eq!(c.ram, Colors::default().ram);
+        assert_eq!(c.gpu, Colors::default().gpu);
+    }
+
+    #[test]
     fn partial_file_fills_defaults() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("settings.json");
@@ -94,5 +173,6 @@ mod tests {
         let s = Settings::load(&p);
         assert!(!s.low_memory);
         assert_eq!(s.thresholds.warn, 70.0);
+        assert_eq!(s.colors, Colors::default());
     }
 }

@@ -1,4 +1,36 @@
-import type { SessionState, SessionView, Step } from "./types";
+import type { Colors, SessionState, SessionView, Step } from "./types";
+
+/** Mirrors `Colors::default()` in src-tauri/src/settings.rs. */
+export const DEFAULT_COLORS: Colors = {
+  working: "#4c8dff",
+  done: "#34c759",
+  error: "#ff453a",
+  request: "#a970ff",
+  five_hour: "#e5e5ea",
+  seven_day: "#e5e5ea",
+  cpu: "#64d2ff",
+  ram: "#5e5ce6",
+  gpu: "#66d4cf",
+  ctx: "#e5e5ea",
+  warn: "#ffb340",
+  crit: "#ff453a",
+};
+
+/** CSS custom property each configurable color drives. */
+export const COLOR_VARS: Record<keyof Colors, string> = {
+  working: "--state-working",
+  done: "--state-done",
+  error: "--state-error",
+  request: "--state-approval",
+  five_hour: "--meter-5h",
+  seven_day: "--meter-7d",
+  cpu: "--meter-cpu",
+  ram: "--meter-ram",
+  gpu: "--meter-gpu",
+  ctx: "--meter-ctx",
+  warn: "--ring-warn",
+  crit: "--ring-crit",
+};
 
 /** `45s`, `12m`, `2h 10m`, `3d 4h`. Negative input clamps to 0. */
 export function formatCountdown(secs: number): string {
