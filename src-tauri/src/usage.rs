@@ -99,11 +99,14 @@ impl Usage {
             };
         }
         if let Some(e) = self.estimate {
+            // Reset times from the last status line stay valid until they pass.
+            let (five, seven) = self.exact.as_ref().map_or((None, None), |(f, s, _)| (f.as_ref(), s.as_ref()));
+            let last_reset = |w: Option<&Window>| w.and_then(|w| w.resets_at).filter(|r| *r > now_s);
             let pct = |used: u64, cap: u64| (used as f64 / cap.max(1) as f64 * 100.0).min(100.0);
-            let mk = |p: f64| Ring { pct: (p * 10.0).round() / 10.0, resets_at: None, level: level(p, t) };
+            let mk = |p: f64, resets_at: Option<u64>| Ring { pct: (p * 10.0).round() / 10.0, resets_at, level: level(p, t) };
             return UsageView {
-                five_hour: Some(mk(pct(e.five_hour, caps.five_hour_tokens))),
-                seven_day: Some(mk(pct(e.seven_day, caps.seven_day_tokens))),
+                five_hour: Some(mk(pct(e.five_hour, caps.five_hour_tokens), last_reset(five))),
+                seven_day: Some(mk(pct(e.seven_day, caps.seven_day_tokens), last_reset(seven))),
                 source: "estimated",
             };
         }
@@ -164,6 +167,21 @@ mod tests {
         assert_eq!(v.source, "estimated");
         assert_eq!(v.five_hour.unwrap().pct, 10.0);
         assert_eq!(v.seven_day.unwrap().pct, 10.0);
+    }
+
+    #[test]
+    fn stale_exact_keeps_future_reset() {
+        let mut u = Usage::default();
+        let later = NOW + EXACT_STALE_MS;
+        u.apply_status(&status(Some(31.0), Some(later / 1000 + 60), NOW));
+        u.set_estimate(EstimateTotals { five_hour: 0, seven_day: 0 });
+        let v = u.view(later, Thresholds::default(), Caps::default());
+        assert_eq!(v.source, "estimated");
+        assert_eq!(v.five_hour.unwrap().resets_at, Some(later / 1000 + 60));
+        assert_eq!(v.seven_day.unwrap().resets_at, None);
+        // Once the reset passes it is dropped.
+        let v = u.view(later + 61_000, Thresholds::default(), Caps::default());
+        assert_eq!(v.five_hour.unwrap().resets_at, None);
     }
 
     #[test]

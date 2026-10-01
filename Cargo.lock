@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "clawed"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clawed-proto",
  "dirs 6.0.0",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "clawed-hook"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clawed-proto",
  "interprocess",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "clawed-proto"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "interprocess",
  "serde",
