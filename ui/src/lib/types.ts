@@ -83,6 +83,7 @@ export interface Settings {
   context_overrides: Record<string, number>;
   first_run_done: boolean;
   hooks_notice_shown: boolean;
+  check_updates: boolean;
 }
 
 export interface InstallerStatus {

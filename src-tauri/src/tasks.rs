@@ -20,6 +20,9 @@ const USAGE_IDLE: Duration = Duration::from_secs(300);
 /// Minimum gap between account usage requests.
 const USAGE_API_MIN_MS: u64 = 120_000;
 const IDLE_CHECK: Duration = Duration::from_secs(30);
+/// First update check shortly after launch, then once a day.
+const UPDATE_FIRST: Duration = Duration::from_secs(60);
+const UPDATE_INTERVAL: Duration = Duration::from_secs(24 * 3600);
 
 pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
     tauri::async_runtime::spawn(emitter(app.clone(), shared.clone()));
@@ -27,7 +30,28 @@ pub fn spawn_all(app: AppHandle, shared: Arc<Shared>) {
     tauri::async_runtime::spawn(context(shared.clone()));
     tauri::async_runtime::spawn(usage(shared.clone()));
     tauri::async_runtime::spawn(system(app.clone(), shared.clone()));
+    tauri::async_runtime::spawn(updates(shared.clone()));
     tauri::async_runtime::spawn(idle_teardown(app, shared));
+}
+
+/// Checks GitHub for a newer release; the tray shows it when found.
+async fn updates(shared: Arc<Shared>) {
+    tokio::time::sleep(UPDATE_FIRST).await;
+    loop {
+        if lock(&shared.settings).check_updates {
+            match tokio::task::spawn_blocking(crate::update::check).await {
+                Ok(Ok(found)) => {
+                    *lock(&shared.update) = found;
+                    shared.mark_dirty();
+                }
+                Ok(Err(e)) => log::debug!("update check: {e}"),
+                Err(e) => log::debug!("update check task: {e}"),
+            }
+        } else if lock(&shared.update).take().is_some() {
+            shared.mark_dirty();
+        }
+        tokio::time::sleep(UPDATE_INTERVAL).await;
+    }
 }
 
 const SYSTEM_INTERVAL: Duration = Duration::from_millis(1500);

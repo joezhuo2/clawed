@@ -7,6 +7,34 @@ change behavior.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-01
+
+### Added
+
+- Update notice. Once a day (first check a minute after launch) clawed asks
+  GitHub for the latest published release; when it is newer, the tray menu
+  shows "Update available: vX.Y.Z…", which opens the release page. Nothing
+  is downloaded or installed automatically. Drafts and pre-releases are
+  ignored, and only this repository's release pages are opened. Turn it off
+  under **Updates** in Settings (`check_updates`).
+- `SECURITY.md`: how to report vulnerabilities privately, what is in scope,
+  and the fail-safe design (Claude Code's own prompt is the fallback).
+- GitHub issue templates: bug report (OS, Claude Code version, how to capture
+  `CLAWED_DEBUG` output), feature request, and a link to private
+  vulnerability reporting instead of blank issues.
+
+### Fixed
+
+- After installing a new version, the hook copy registered in
+  `~/.claude/settings.json` (`%LOCALAPPDATA%\clawed\bin`,
+  `~/Library/Application Support/clawed/bin`) stayed at the old version until
+  **Install hooks** was run again. clawed now replaces it at launch when it
+  differs from the bundled hook; nothing is created if hooks were never
+  installed.
+- Replacing the hook binary while a hook process is still running (an
+  approval waits up to 60 s) no longer fails on Windows: the running file is
+  renamed aside first, and restored if the swap fails.
+
 ## [0.1.4] - 2026-10-01
 
 macOS support, first pass. All macOS code now type-checks for
@@ -118,7 +146,8 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/joezhuo2/clawed/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/joezhuo2/clawed/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/joezhuo2/clawed/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/joezhuo2/clawed/compare/v0.1.1...v0.1.2

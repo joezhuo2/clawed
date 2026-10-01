@@ -126,6 +126,18 @@
     </section>
 
     <section>
+      <h2>Updates</h2>
+      <label class="check">
+        <input type="checkbox" bind:checked={settings.check_updates} />
+        Check GitHub once a day for a new release
+      </label>
+      <p class="muted">
+        When one is out, the tray menu links to its release page. Nothing is downloaded automatically; install the new version over the
+        old one.
+      </p>
+    </section>
+
+    <section>
       <h2>Usage rings</h2>
       <div class="grid">
         <label>Warn at (%) <input type="number" min="1" max="100" bind:value={settings.thresholds.warn} /></label>

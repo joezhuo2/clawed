@@ -59,13 +59,24 @@ Download `clawed_<version>_x64-setup.exe` and `SHA256SUMS.txt` from
 hash before running it:
 
 ```powershell
-Get-FileHash .\clawed_0.1.3_x64-setup.exe   # compare with SHA256SUMS.txt
+Get-FileHash .\clawed_0.1.5_x64-setup.exe   # compare with SHA256SUMS.txt
 ```
 
-Builds without a code signing certificate trigger SmartScreen ("Windows
-protected your PC"); choose **More info → Run anyway**. There's no auto-update
-yet: install a newer version over the old one. The hook binary lives at a
-stable per-user path, so installed hooks keep working across updates.
+Releases aren't code signed yet, so SmartScreen shows "Windows protected your
+PC" on first run; choose **More info → Run anyway**. The checksum above is how
+you know the file is the one the release workflow built.
+
+## Updating
+
+clawed checks GitHub once a day for a newer release and, when there is one,
+adds **Update available** to the tray menu, linking to the release page.
+Nothing is downloaded or installed automatically: download the new installer
+(or dmg) and install it over the old version. Turn the check off under
+**Updates** in Settings.
+
+Installed hooks keep working across updates. They point at a copy of the hook
+in a stable per-user folder, and on its first launch the new version replaces
+that copy if it changed, so you don't need to run **Install hooks** again.
 
 ## Install (macOS, preview)
 
@@ -148,8 +159,10 @@ cargo run -p clawed --bin replay -- fixtures/sample-session.jsonl --speed 2
 
 Session data stays on your machine. The hook forwards event metadata (session,
 tool name, paths, prompts) to the local app only, and never forwards file
-contents from Write/Edit. The only network request clawed makes is the usage
-poll to api.anthropic.com described above.
+contents from Write/Edit. clawed makes two kinds of network requests: the
+usage poll to api.anthropic.com described above, and the daily update check
+to api.github.com (no account data, just the latest release; can be turned
+off in Settings).
 
 ## Project layout
 
@@ -161,7 +174,7 @@ ui/               island and settings windows (Svelte)
 fixtures/         synthetic hook payloads for replay
 scripts/          hook build, version check, release notes, memory measurement
 docs/             design notes, measurements, release process
-.github/          CI and release workflows
+.github/          CI and release workflows, issue templates
 ```
 
 See [docs/design.md](docs/design.md) for the design and
@@ -172,7 +185,11 @@ See [docs/design.md](docs/design.md) for the design and
 
 Issues and pull requests are welcome. Please run the commands under
 [Tests](#tests) before opening a PR and add an entry under `[Unreleased]` in
-[CHANGELOG.md](CHANGELOG.md).
+[CHANGELOG.md](CHANGELOG.md). Bug reports use the issue template, which
+explains how to capture `CLAWED_DEBUG` output.
+
+Security issues (for example an approval applied without your click) should be
+reported privately; see [SECURITY.md](SECURITY.md).
 
 ## License
 

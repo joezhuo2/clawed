@@ -18,6 +18,7 @@ Development and testing happen on Windows. macOS code is verified by `cargo clip
 | Launch at login | On by default, toggle in tray menu |
 | Low memory mode | On by default, toggle in tray menu. Island window destroyed after 3 min with no Working/WaitingInput/AwaitingApproval session |
 | Collapsed step bar | Most recently active working session |
+| Updates | No in-app updater. Daily check of GitHub `releases/latest`; tray item links to the release page (opt-out setting) |
 
 ## Architecture
 
@@ -123,6 +124,7 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 ### Tray
 `TrayIconBuilder`, template glyph (rounded pill) with idle / working / approval variants. Menu, rebuilt only on state or usage change:
 
+- `Update available: vX.Y.Z…` (only when the update check found a newer release; opens the release page)
 - Show / hide island
 - `5h: 31% (resets 2h 10m)` and `7d: 12%` (disabled text items, "estimated" suffix when applicable)
 - Active sessions (repo — state)
@@ -136,10 +138,10 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 ### Installer
 - Reads `~/.claude/settings.json`, writes `settings.json.clawed-backup-<ts>`, merges our handlers into `hooks.<Event>` arrays without touching others, sets `statusLine` only when none is set (otherwise leaves it and notes the estimate is used), shows a diff in the settings window, writes on confirm.
 - Our entries are identified by `command` ending in `clawed-hook` / `clawed-hook.exe`. Uninstall removes only those, and removes `statusLine` only if it is ours.
-- The hook binary is copied to the app data dir (`%LOCALAPPDATA%\clawed\bin`, `~/Library/Application Support/clawed/bin`) so the path is stable across app updates.
+- The hook binary is copied to the app data dir (`%LOCALAPPDATA%\clawed\bin`, `~/Library/Application Support/clawed/bin`) so the path is stable across app updates. At launch, if that copy exists and differs from the bundled hook, it is replaced (a copy held by a running hook is renamed aside first); if hooks were never installed nothing is created.
 
 ### Settings
-JSON in the app config dir: context window overrides, estimate caps (5 h, 7 d tokens), ring thresholds (70 / 90), low memory mode, pause approvals, idle teardown minutes (3). Launch at login is read from the OS.
+JSON in the app config dir: context window overrides, estimate caps (5 h, 7 d tokens), ring thresholds (70 / 90), low memory mode, pause approvals, idle teardown minutes (3), update check (on). Launch at login is read from the OS.
 
 ### Autostart
 `tauri-plugin-autostart` (LaunchAgent / HKCU Run) with `--autostarted`. Enabled on first run. Autostarted launches stay in the tray; if hooks are not installed, one tray notification.

@@ -22,6 +22,8 @@ pub struct Settings {
     /// Set after the first launch enabled autostart.
     pub first_run_done: bool,
     pub hooks_notice_shown: bool,
+    /// Ask GitHub once a day whether a newer release exists.
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -35,6 +37,7 @@ impl Default for Settings {
             context_overrides: HashMap::new(),
             first_run_done: false,
             hooks_notice_shown: false,
+            check_updates: true,
         }
     }
 }
@@ -77,6 +80,7 @@ mod tests {
         let s = Settings::load(&p);
         assert!(s.low_memory);
         assert_eq!(s.idle_minutes, 3);
+        assert!(s.check_updates);
         let s2 = Settings { idle_minutes: 7, ..s };
         s2.save(&p).unwrap();
         assert_eq!(Settings::load(&p), s2);

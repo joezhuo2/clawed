@@ -14,7 +14,7 @@ The version lives in four places and must match:
 
 `npm run check:version` compares them. CI runs it on every push, and the
 release workflow runs it again with the tag (`node scripts/check-version.mjs
-v0.1.4`), so a tag that doesn't match the files fails the release.
+v0.1.5`), so a tag that doesn't match the files fails the release.
 
 ## Steps
 
@@ -37,14 +37,17 @@ v0.1.4`), so a tag that doesn't match the files fails the release.
 4. Commit, then tag and push:
 
    ```bash
-   git tag -a v0.1.4 -m "clawed 0.1.4"
-   git push origin main v0.1.4
+   git tag -a v0.1.5 -m "clawed 0.1.5"
+   git push origin main v0.1.5
    ```
 
 5. The `Release` workflow builds the NSIS installer and both dmgs, writes
    one `SHA256SUMS.txt` for all of them, and creates a **draft** GitHub
    release. Run the fresh-machine tests below against the draft's files, then
-   publish it.
+   publish it. Installed apps only see the release once it is published and
+   not marked as a pre-release: the update notice reads GitHub's
+   `releases/latest`, which skips drafts and pre-releases. Mark a release as
+   a pre-release to test it without notifying users.
 
 ### Checking macOS from Windows
 
@@ -94,6 +97,27 @@ timestamp server). Without the secrets the installer is unsigned and Windows
 SmartScreen shows "Windows protected your PC" on first run; users choose
 **More info → Run anyway**.
 
+Current decision (0.1.5): ship unsigned and rely on `SHA256SUMS.txt` plus the
+README's SmartScreen instructions. Revisit when a certificate (OV, or a cloud
+signing service such as Azure Trusted Signing) is worth the cost; the
+workflow only needs the two secrets above for a `.pfx`.
+
+## Updates
+
+There is no in-app updater (`tauri-plugin-updater` is not used: it would need
+its own signing key and update manifest, and unsigned Windows installers would
+still hit SmartScreen). Instead the app checks
+`https://api.github.com/repos/joezhuo2/clawed/releases/latest` a minute after
+launch and then daily, and shows a tray item linking to the release page when
+the tag is a newer `vX.Y.Z`. Users install over the old version.
+
+Installed hooks survive updates: `~/.claude/settings.json` points at the copy
+in `%LOCALAPPDATA%\clawed\bin` (macOS: `~/Library/Application
+Support/clawed/bin`), and at launch the app replaces that copy when it differs
+from the hook bundled with the new version. A copy held open by a running
+hook is renamed aside first; if the swap still fails it is retried on the
+next launch.
+
 ### macOS signing and notarization
 
 `tauri build` signs with a Developer ID and notarizes when these repository
@@ -137,6 +161,13 @@ with Claude Code installed and signed in.
 - [ ] Quit clawed with an approval pending: Claude Code falls back to its own
       prompt immediately.
 - [ ] With clawed quit, Claude Code runs normally (the hook exits 0 silently).
+- [ ] Update: with hooks installed from the previous release, install this
+      one over it without reinstalling hooks. After launch,
+      `%LOCALAPPDATA%\clawed\bin\clawed-hook.exe` has the new file's date
+      and size, and sessions and approvals still work.
+- [ ] Update notice: while a newer release is published, the tray menu shows
+      **Update available** and it opens the release page. With **Updates**
+      off in Settings it doesn't appear after the next check.
 - [ ] Settings → **Uninstall hooks…** removes only clawed's entries.
 - [ ] Uninstall the app (Settings → Apps). If hooks are still installed at this
       point, Claude Code must keep working: `%LOCALAPPDATA%\clawed\bin` holds

@@ -74,6 +74,9 @@ fn signature(snap: &Snapshot, shared: &Shared, autostart: bool) -> String {
         autostart,
         lock(&shared.settings).low_memory,
     );
+    if let Some(r) = lock(&shared.update).as_ref() {
+        sig += &format!("|update:{}", r.version);
+    }
     for s in &snap.sessions {
         sig += &format!("|{}:{}:{}", s.id, s.repo, s.state.label());
     }
@@ -89,6 +92,10 @@ fn menu(app: &AppHandle, snap: &Snapshot, shared: &Shared) -> tauri::Result<Menu
     let sep = || PredefinedMenuItem::separator(app);
 
     let menu = Menu::new(app)?;
+    if let Some(r) = lock(&shared.update).as_ref() {
+        menu.append(&item("update", &format!("Update available: v{}…", r.version))?)?;
+        menu.append(&sep()?)?;
+    }
     menu.append(&item("toggle_island", "Show / hide island")?)?;
     menu.append(&sep()?)?;
     menu.append(&text("u5", ring_text("5h", snap.usage.five_hour.as_ref(), snap.usage.source, now_s))?)?;
@@ -178,6 +185,11 @@ fn on_menu(app: &AppHandle, ev: MenuEvent) {
             shared.touch_active();
         }
         "hooks" | "settings" => crate::window::open_settings(app),
+        "update" => {
+            if let Some(r) = lock(&shared.update).as_ref() {
+                crate::update::open(&r.url);
+            }
+        }
         "quit" => {
             let sessions = lock(&shared.approvals).release_all();
             drop(sessions);

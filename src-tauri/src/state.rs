@@ -34,6 +34,8 @@ pub struct Shared {
     /// Island is expanded: system meters are sampled only then.
     pub expanded: AtomicBool,
     pub expanded_changed: Notify,
+    /// Newer release found by the update check.
+    pub update: Mutex<Option<crate::update::Release>>,
 }
 
 /// Locks a mutex, recovering from poisoning (a panicked holder only ever

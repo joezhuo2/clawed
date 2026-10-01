@@ -69,8 +69,8 @@ pub fn parse_response(body: &str) -> Option<ApiUsage> {
     (u.five_hour.is_some() || u.seven_day.is_some()).then_some(u)
 }
 
-/// Blocking request; call from a blocking thread.
-pub fn fetch(token: &str) -> Result<ApiUsage, String> {
+/// HTTP agent shared by the usage poll and the update check.
+pub(crate) fn agent() -> ureq::Agent {
     let config = ureq::Agent::config_builder().timeout_global(Some(TIMEOUT));
     // macOS uses Security.framework and the keychain's roots, so no C TLS
     // library (ring) has to be built for the target.
@@ -81,8 +81,12 @@ pub fn fetch(token: &str) -> Result<ApiUsage, String> {
             .root_certs(ureq::tls::RootCerts::PlatformVerifier)
             .build(),
     );
-    let agent: ureq::Agent = config.build().into();
-    let mut resp = agent
+    config.build().into()
+}
+
+/// Blocking request; call from a blocking thread.
+pub fn fetch(token: &str) -> Result<ApiUsage, String> {
+    let mut resp = agent()
         .get(USAGE_URL)
         .header("Authorization", &format!("Bearer {token}"))
         .header("anthropic-beta", BETA)

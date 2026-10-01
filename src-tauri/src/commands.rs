@@ -106,6 +106,18 @@ fn hook_target() -> PathBuf {
         .join(hook_file_name())
 }
 
+/// Replaces the registered hook copy when the bundled one differs (after an
+/// app update). Does nothing when hooks were never installed.
+pub fn refresh_installed_hook() {
+    let Some(src) = hook_source() else { return };
+    let target = hook_target();
+    match installer::refresh_hook_binary(&src, &target) {
+        Ok(true) => log::info!("refreshed {}", target.display()),
+        Ok(false) => {}
+        Err(e) => log::warn!("refresh {}: {e}", target.display()),
+    }
+}
+
 #[tauri::command]
 pub fn installer_status() -> InstallerStatus {
     let path = installer::claude_settings_path();

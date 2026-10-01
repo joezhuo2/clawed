@@ -16,6 +16,7 @@ pub mod tailer;
 pub mod tasks;
 pub mod transcript;
 pub mod tray;
+pub mod update;
 pub mod usage;
 pub mod window;
 
@@ -105,6 +106,9 @@ pub fn run() {
                 s.first_run_done = true;
                 let _ = s.save(&shared.settings_path);
             }
+
+            // After an app update the registered hook copy is stale; refresh it.
+            std::thread::spawn(commands::refresh_installed_hook);
 
             tray::build(&handle)?;
             tasks::spawn_all(handle.clone(), shared.clone());

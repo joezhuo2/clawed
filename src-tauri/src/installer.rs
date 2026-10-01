@@ -174,13 +174,21 @@ pub fn install_hook_binary(src: &Path, data_dir: &Path) -> std::io::Result<PathB
     let dir = data_dir.join("bin");
     std::fs::create_dir_all(&dir)?;
     let dst = dir.join(name);
-    // A running hook can hold the file open on Windows; copy beside and swap.
+    // A running hook (an approval waits up to 60 s) can't be overwritten or
+    // deleted on Windows, but it can be renamed: move it aside, then swap.
     let tmp = dir.join(format!("{name}.new"));
+    let old = dir.join(format!("{name}.old"));
     std::fs::copy(src, &tmp)?;
     if std::fs::rename(&tmp, &dst).is_err() {
-        let _ = std::fs::remove_file(&dst);
-        std::fs::rename(&tmp, &dst)?;
+        let _ = std::fs::remove_file(&old);
+        let _ = std::fs::rename(&dst, &old);
+        if let Err(e) = std::fs::rename(&tmp, &dst) {
+            let _ = std::fs::rename(&old, &dst);
+            let _ = std::fs::remove_file(&tmp);
+            return Err(e);
+        }
     }
+    let _ = std::fs::remove_file(&old);
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -189,9 +197,39 @@ pub fn install_hook_binary(src: &Path, data_dir: &Path) -> std::io::Result<PathB
     Ok(dst)
 }
 
+/// Re-copies the hook when an installed copy exists at `dst` and differs from
+/// `src`. Returns whether it was replaced.
+pub fn refresh_hook_binary(src: &Path, dst: &Path) -> std::io::Result<bool> {
+    if !dst.exists() || std::fs::read(src)? == std::fs::read(dst)? {
+        return Ok(false);
+    }
+    let data_dir = dst.parent().and_then(Path::parent).ok_or(std::io::ErrorKind::InvalidInput)?;
+    install_hook_binary(src, data_dir)?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn refresh_only_replaces_stale_installed_hook() {
+        let dir = tempfile::tempdir().unwrap();
+        let name = if cfg!(windows) { "clawed-hook.exe" } else { "clawed-hook" };
+        let src = dir.path().join("bundled");
+        let dst = dir.path().join("data").join("bin").join(name);
+        std::fs::write(&src, b"v2").unwrap();
+        // Never installed: nothing is created.
+        assert!(!refresh_hook_binary(&src, &dst).unwrap());
+        assert!(!dst.exists());
+        // Stale copy from an older version: replaced.
+        std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        std::fs::write(&dst, b"v1").unwrap();
+        assert!(refresh_hook_binary(&src, &dst).unwrap());
+        assert_eq!(std::fs::read(&dst).unwrap(), b"v2");
+        // Already current: left alone.
+        assert!(!refresh_hook_binary(&src, &dst).unwrap());
+    }
 
     const HOOK: &str = "C:\\Users\\me\\AppData\\Local\\clawed\\bin\\clawed-hook.exe";
 
