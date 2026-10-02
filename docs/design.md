@@ -36,6 +36,7 @@ islet/
   Cargo.toml            workspace
   crates/proto/         serde wire types, pipe name, payload stripping
   crates/hook/          islet-hook binary
+  crates/replay/        replay dev tool (kept out of the app bundle)
   src-tauri/            backend app
   ui/                   Svelte frontend
   fixtures/             captured payloads (*.jsonl) + replay input

@@ -7,6 +7,22 @@ change behavior.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-02
+
+### Fixed
+
+- macOS release build failed at codesigning ("code object is not signed at
+  all ... In subcomponent: Contents/MacOS/replay"). The Tauri bundler copied
+  every bin target of the app crate into the `.app`, including the `replay`
+  dev tool, which was never signed. `replay` now lives in its own crate
+  (`crates/replay`, package `islet-replay`) and is no longer part of the
+  bundle or the Windows install.
+
+### Changed
+
+- Build `replay` with `cargo build --release -p islet-replay` (or run it with
+  `cargo run -p islet-replay -- ...`); `npx tauri build` no longer builds it.
+
 ## [0.2.1] - 2026-10-02
 
 Renamed from clawed to islet, plus a robustness and branding pass before the
@@ -220,7 +236,8 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/islet/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/joezhuo2/islet/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/joezhuo2/islet/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/joezhuo2/islet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/joezhuo2/islet/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/joezhuo2/islet/compare/v0.1.4...v0.1.5

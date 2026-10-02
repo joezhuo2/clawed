@@ -13,10 +13,6 @@ crate-type = ["rlib"]
 name = "islet"
 path = "src/main.rs"
 
-[[bin]]
-name = "replay"
-path = "src/bin/replay.rs"
-
 [build-dependencies]
 tauri-build = { version = "2.7", features = [] }
 

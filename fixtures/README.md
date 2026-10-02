@@ -12,5 +12,5 @@ Recorded or synthetic Claude Code hook payloads, one JSON object per line:
 Replay into a running app:
 
 ```bash
-cargo run -p islet --bin replay -- fixtures/sample-session.jsonl --speed 2
+cargo run -p islet-replay -- fixtures/sample-session.jsonl --speed 2
 ```

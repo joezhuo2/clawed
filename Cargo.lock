@@ -1830,7 +1830,7 @@ checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
 name = "islet"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "dirs 6.0.0",
  "interprocess",
@@ -1860,7 +1860,7 @@ dependencies = [
 
 [[package]]
 name = "islet-hook"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "interprocess",
  "islet-proto",
@@ -1870,13 +1870,22 @@ dependencies = [
 
 [[package]]
 name = "islet-proto"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "interprocess",
  "libc",
  "serde",
  "serde_json",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "islet-replay"
+version = "0.2.2"
+dependencies = [
+ "interprocess",
+ "islet-proto",
+ "serde_json",
 ]
 
 [[package]]

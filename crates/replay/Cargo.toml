@@ -1,0 +1,18 @@
+[package]
+name = "islet-replay"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# Dev tool, kept out of src-tauri: the Tauri bundler copies every bin target of
+# the app crate into the bundle, and an unsigned extra binary in
+# Contents/MacOS fails macOS codesigning.
+[[bin]]
+name = "replay"
+path = "src/main.rs"
+
+[dependencies]
+islet-proto = { path = "../proto", features = ["ipc"] }
+serde_json.workspace = true
+interprocess.workspace = true

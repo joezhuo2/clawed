@@ -35,6 +35,8 @@ which replaces the whole argument string.
 
 ## Reproduce
 
+Build `replay` first: `cargo build --release -p islet-replay`.
+
 ```bash
 export ISLET_SOCKET=islet-measure ISLET_NO_AUTOSTART=1
 ./target/release/islet.exe --autostarted &   # torn down: no window until a hook event
@@ -48,7 +50,7 @@ powershell -File scripts/measure-memory.ps1 -Label busy
 ## macOS
 
 Not measured yet. On a Mac, with a release build (`npx tauri build --bundles
-app`):
+app`, plus `cargo build --release -p islet-replay`):
 
 ```bash
 export ISLET_SOCKET=islet-measure ISLET_NO_AUTOSTART=1
@@ -76,6 +78,7 @@ too.
 
 ```powershell
 npx tauri build --no-bundle
+cargo build --release -p islet-replay
 powershell -File scripts/soak.ps1 -Hours 4
 ```
 

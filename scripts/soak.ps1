@@ -2,7 +2,8 @@
 # in a loop against it and samples memory, to show whether it stays flat over
 # hours. Stops the instance at the end.
 #
-# Usage (from the repo root, after npx tauri build --no-bundle):
+# Usage (from the repo root, after npx tauri build --no-bundle and
+# cargo build --release -p islet-replay):
 #   powershell -File scripts/soak.ps1 -Hours 4 [-SampleMinutes 5] [-Speed 4]
 #
 # Quit any other islet first: the single-instance guard would hand the launch
@@ -19,7 +20,7 @@ param(
 )
 
 foreach ($f in @($App, $Replay, $Fixture)) {
-    if (-not (Test-Path $f)) { Write-Output "$f not found; run npx tauri build --no-bundle"; exit 1 }
+    if (-not (Test-Path $f)) { Write-Output "$f not found; run npx tauri build --no-bundle and cargo build --release -p islet-replay"; exit 1 }
 }
 if (Get-Process islet -ErrorAction SilentlyContinue) {
     Write-Output "Another islet.exe is running; quit it first."
