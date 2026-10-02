@@ -22,7 +22,7 @@ Built with Tauri 2 (Rust) and Svelte 5.
 - **Expanded (hover):** per-session rows with Claude's latest message, the
   current tool step, todo progress, context window meter, files touched and
   elapsed time; 5-hour and 7-day rings with reset countdowns; CPU, RAM and GPU
-  rings.
+  rings, with CPU/GPU temperature (°C) and RAM used/total under them.
 - **Colors:** state, ring, context and warn/critical colors are set under
   **Colors** in Settings.
 - **Approvals:** permission requests expand the island with Allow / Deny. If
@@ -62,7 +62,7 @@ Download `islet_<version>_x64-setup.exe` and `SHA256SUMS.txt` from
 hash before running it:
 
 ```powershell
-Get-FileHash .\islet_0.2.2_x64-setup.exe   # compare with SHA256SUMS.txt
+Get-FileHash .\islet_0.3.0_x64-setup.exe   # compare with SHA256SUMS.txt
 ```
 
 Releases aren't code signed yet, so SmartScreen shows "Windows protected your

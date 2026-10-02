@@ -66,6 +66,9 @@ export interface SystemView {
   gpu: Ring | null;
   ram_used_gb: number;
   ram_total_gb: number;
+  /** Degrees Celsius; null where the platform exposes no sensor. */
+  cpu_temp_c: number | null;
+  gpu_temp_c: number | null;
 }
 
 export interface Snapshot {

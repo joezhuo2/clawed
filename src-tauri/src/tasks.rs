@@ -57,7 +57,7 @@ async fn updates(shared: Arc<Shared>) {
 const SYSTEM_EXPANDED: Duration = Duration::from_millis(1500);
 const SYSTEM_COLLAPSED: Duration = Duration::from_secs(3);
 
-/// Samples CPU/RAM/GPU while the island window exists: every 1.5 s expanded
+/// Samples CPU/RAM/GPU and temperatures while the island window exists: every 1.5 s expanded
 /// (footer gauges), every 3 s collapsed (pill rings).
 async fn system(app: AppHandle, shared: Arc<Shared>) {
     let mut sampler: Option<crate::system::Sampler> = None;

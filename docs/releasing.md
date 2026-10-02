@@ -14,7 +14,7 @@ The version lives in four places and must match:
 
 `npm run check:version` compares them. CI runs it on every push, and the
 release workflow runs it again with the tag (`node scripts/check-version.mjs
-v0.2.2`), so a tag that doesn't match the files fails the release.
+v0.3.0`), so a tag that doesn't match the files fails the release.
 
 ## Steps
 
@@ -37,8 +37,8 @@ v0.2.2`), so a tag that doesn't match the files fails the release.
 4. Commit, then tag and push:
 
    ```bash
-   git tag -a v0.2.2 -m "islet 0.2.2"
-   git push origin main v0.2.2
+   git tag -a v0.3.0 -m "islet 0.3.0"
+   git push origin main v0.3.0
    ```
 
 5. The `Release` workflow builds the NSIS installer and both dmgs, writes
@@ -205,6 +205,7 @@ app from a terminal with `ISLET_DEBUG=1` the first time
       the transparent margins.
 - [ ] GPU ring shows a number, roughly matching Activity Monitor → Window →
       GPU History while a GPU load runs.
+- [ ] CPU and GPU rings show a temperature line (°C) that rises under load.
 - [ ] Usage rings show exact numbers (the usage request works with the system
       TLS stack).
 - [ ] Launch at login: a LaunchAgent is registered and islet starts after

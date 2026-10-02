@@ -41,8 +41,14 @@ windows-sys = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_System_Threading",
   "Win32_System_Performance",
+  "Wdk_Graphics_Direct3D",
 ] }
 widestring = "1"
+
+# Temperature sensors via sysinfo's component list (Windows reads PDH and
+# D3DKMT directly; sysinfo's WMI thermal zones there need admin).
+[target.'cfg(not(windows))'.dependencies]
+sysinfo = { version = "0.39", default-features = false, features = ["system", "component"] }
 
 [dev-dependencies]
 tempfile = "3"

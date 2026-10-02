@@ -7,6 +7,18 @@ change behavior.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-02
+
+### Added
+
+- CPU and GPU temperatures in degrees Celsius under the CPU and GPU rings in
+  the expanded island, the same way RAM shows used/total memory. Windows reads
+  the hottest ACPI thermal zone (PDH `\Thermal Zone Information(*)\Temperature`,
+  no admin needed) for CPU and the driver-reported adapter temperature
+  (D3DKMT `KMTQAITYPE_ADAPTERPERFDATA`, what Task Manager shows) for GPU.
+  macOS reads the SMC / IOHID sensors through `sysinfo`. A sensor that isn't
+  available leaves the line blank.
+
 ## [0.2.2] - 2026-10-02
 
 ### Fixed
@@ -236,7 +248,8 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/islet/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/joezhuo2/islet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/joezhuo2/islet/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/joezhuo2/islet/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/joezhuo2/islet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/joezhuo2/islet/compare/v0.1.5...v0.2.0

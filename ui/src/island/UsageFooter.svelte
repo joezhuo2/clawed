@@ -19,17 +19,21 @@
     return secs > 0 ? `↻ ${formatCountdown(secs)}` : "resetting";
   }
 
+  function tempText(c: number | null | undefined): string {
+    return c == null ? "" : `${Math.round(c)}°C`;
+  }
+
   const items = $derived<Item[]>([
     { label: "5-hour", ring: usage.five_hour, color: "var(--meter-5h)", extra: resetText(usage.five_hour) },
     { label: "7-day", ring: usage.seven_day, color: "var(--meter-7d)", extra: resetText(usage.seven_day) },
-    { label: "CPU", ring: system?.cpu ?? null, color: "var(--meter-cpu)" },
+    { label: "CPU", ring: system?.cpu ?? null, color: "var(--meter-cpu)", extra: tempText(system?.cpu_temp_c) },
     {
       label: "RAM",
       ring: system?.ram ?? null,
       color: "var(--meter-ram)",
       extra: system ? `${system.ram_used_gb.toFixed(1)}/${Math.round(system.ram_total_gb)}G` : "",
     },
-    { label: "GPU", ring: system?.gpu ?? null, color: "var(--meter-gpu)" },
+    { label: "GPU", ring: system?.gpu ?? null, color: "var(--meter-gpu)", extra: tempText(system?.gpu_temp_c) },
   ]);
 </script>
 
