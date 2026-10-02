@@ -137,7 +137,8 @@ impl EstimateScanner {
                     }
                     file.last_msg_id = u.msg_id.clone();
                     if let Some(ts) = u.ts_ms {
-                        *file.buckets.entry(ts / BUCKET_MS).or_default() += u.billable_tokens();
+                        let b = file.buckets.entry(ts / BUCKET_MS).or_default();
+                        *b = b.saturating_add(u.billable_tokens());
                     }
                 }
             }
@@ -151,9 +152,9 @@ impl EstimateScanner {
         for f in self.files.values_mut() {
             f.buckets.retain(|b, _| *b >= week_start);
             for (b, tokens) in &f.buckets {
-                totals.seven_day += tokens;
+                totals.seven_day = totals.seven_day.saturating_add(*tokens);
                 if *b >= five_start {
-                    totals.five_hour += tokens;
+                    totals.five_hour = totals.five_hour.saturating_add(*tokens);
                 }
             }
         }

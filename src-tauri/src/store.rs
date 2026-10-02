@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use clawed_proto::{Event, StatusLine, TaskDelta};
+use islet_proto::{Event, StatusLine, TaskDelta};
 use serde::Serialize;
 
 pub const STEP_HISTORY: usize = 20;
@@ -452,7 +452,7 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clawed_proto::{Todo, PROTO_VERSION};
+    use islet_proto::{Todo, PROTO_VERSION};
 
     fn ev(kind: &str) -> Event {
         Event {

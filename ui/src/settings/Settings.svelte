@@ -83,7 +83,7 @@
 </script>
 
 <main>
-  <h1>clawed</h1>
+  <h1>islet</h1>
 
   <section>
     <h2>Claude Code hooks</h2>
@@ -93,17 +93,17 @@
       </p>
       {#if status.error}<p class="error">{status.error}</p>{/if}
       {#if !status.hook_source_found}
-        <p class="error">clawed-hook was not found next to the app. Build it with <code>cargo build -p clawed-hook</code>.</p>
+        <p class="error">islet-hook was not found next to the app. Build it with <code>cargo build -p islet-hook</code>.</p>
       {/if}
       {#if status.foreign_statusline}
         <p class="muted">
-          You already have a status line, so clawed leaves it alone. Plan usage will be estimated from local
+          You already have a status line, so islet leaves it alone. Plan usage will be estimated from local
           transcripts instead of read from Claude Code.
         </p>
       {/if}
 
       <div class="buttons">
-        <button onclick={() => (confirm = "install")} disabled={!status.hook_source_found}>
+        <button onclick={() => (confirm = "install")} disabled={!status.hook_source_found || !!status.error}>
           {status.installed ? "Reinstall hooks…" : "Install hooks…"}
         </button>
         <button class="secondary" onclick={() => (confirm = "uninstall")} disabled={!status.installed}>
@@ -207,6 +207,10 @@
   {#if error}<p class="error">{error}</p>{/if}
 
   <p class="muted small">Launch at login, pause approvals and low memory mode are also in the tray menu.</p>
+  <p class="muted small">
+    islet is an independent project, not affiliated with, endorsed by, or sponsored by Anthropic. "Claude" and
+    "Claude Code" are trademarks of Anthropic.
+  </p>
 </main>
 
 <style>

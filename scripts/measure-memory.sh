@@ -1,13 +1,13 @@
 #!/bin/sh
-# macOS counterpart of measure-memory.ps1. Sums resident memory of the clawed
+# macOS counterpart of measure-memory.ps1. Sums resident memory of the islet
 # process and the WebKit XPC processes (WebContent, Networking, GPU) started
-# after it. WebKit processes are children of launchd, not of clawed, so this
+# after it. WebKit processes are children of launchd, not of islet, so this
 # matches by start time: don't open Safari or other WebKit apps while
 # measuring.
 # Usage: sh scripts/measure-memory.sh [label]
 label=${1:-sample}
-pid=$(pgrep -x clawed | head -n 1)
-[ -n "$pid" ] || { echo "clawed is not running"; exit 1; }
+pid=$(pgrep -x islet | head -n 1)
+[ -n "$pid" ] || { echo "islet is not running"; exit 1; }
 
 epoch() { date -j -f "%a %b %d %T %Y" "$1" +%s 2>/dev/null; }
 start=$(epoch "$(ps -o lstart= -p "$pid")")

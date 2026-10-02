@@ -1,16 +1,16 @@
 [package]
-name = "clawed"
+name = "islet"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-default-run = "clawed"
+default-run = "islet"
 
 [lib]
-name = "clawed_lib"
+name = "islet_lib"
 crate-type = ["rlib"]
 
 [[bin]]
-name = "clawed"
+name = "islet"
 path = "src/main.rs"
 
 [[bin]]
@@ -21,7 +21,7 @@ path = "src/bin/replay.rs"
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-clawed-proto = { path = "../crates/proto", features = ["ipc"] }
+islet-proto = { path = "../crates/proto", features = ["ipc"] }
 tauri = { version = "2.12", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-autostart = "2.6"
 tauri-plugin-single-instance = "2.5"

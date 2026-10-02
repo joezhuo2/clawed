@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clawed_proto::now_ms;
+use islet_proto::now_ms;
 use tauri::{AppHandle, Emitter};
 
 use crate::state::{lock, Shared};
@@ -87,8 +87,8 @@ async fn emitter(app: AppHandle, shared: Arc<Shared>) {
     loop {
         shared.dirty.notified().await;
         let snap = shared.snapshot();
-        if std::env::var_os("CLAWED_DEBUG").is_some() {
-            eprintln!("[clawed] state {}", serde_json::to_string(&snap).unwrap_or_default());
+        if std::env::var_os("ISLET_DEBUG").is_some() {
+            eprintln!("[islet] state {}", serde_json::to_string(&snap).unwrap_or_default());
         }
         let _ = app.emit_to(crate::window::LABEL, "state", &snap);
         crate::tray::refresh(&app, &shared, &snap);
@@ -240,7 +240,7 @@ async fn idle_teardown(app: AppHandle, shared: Arc<Shared>) {
         tokio::time::sleep(IDLE_CHECK).await;
         let (low_memory, idle_ms) = {
             let s = lock(&shared.settings);
-            (s.low_memory, s.idle_minutes.max(1) * 60_000)
+            (s.low_memory, s.idle_minutes.max(1).saturating_mul(60_000))
         };
         if shared.is_busy() {
             shared.touch_active();

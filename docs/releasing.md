@@ -14,7 +14,7 @@ The version lives in four places and must match:
 
 `npm run check:version` compares them. CI runs it on every push, and the
 release workflow runs it again with the tag (`node scripts/check-version.mjs
-v0.2.0`), so a tag that doesn't match the files fails the release.
+v0.2.1`), so a tag that doesn't match the files fails the release.
 
 ## Steps
 
@@ -37,8 +37,8 @@ v0.2.0`), so a tag that doesn't match the files fails the release.
 4. Commit, then tag and push:
 
    ```bash
-   git tag -a v0.2.0 -m "clawed 0.2.0"
-   git push origin main v0.2.0
+   git tag -a v0.2.1 -m "islet 0.2.1"
+   git push origin main v0.2.1
    ```
 
 5. The `Release` workflow builds the NSIS installer and both dmgs, writes
@@ -58,7 +58,7 @@ empty object files is enough:
 
 ```bash
 rustup target add aarch64-apple-darwin
-touch src-tauri/binaries/clawed-hook-aarch64-apple-darwin   # sidecar placeholder
+touch src-tauri/binaries/islet-hook-aarch64-apple-darwin   # sidecar placeholder
 CC_aarch64_apple_darwin=/path/to/stub-cc AR_aarch64_apple_darwin=/path/to/stub-ar \
   cargo clippy --workspace --all-targets --target aarch64-apple-darwin -- -D warnings
 ```
@@ -73,9 +73,9 @@ The changelog's compare links expect tags for the versions released before the
 workflow existed:
 
 ```bash
-git tag -a v0.1.0 13c6279 -m "clawed 0.1.0"
-git tag -a v0.1.1 1e5f1e3 -m "clawed 0.1.1"
-git tag -a v0.1.2 9d32454 -m "clawed 0.1.2"
+git tag -a v0.1.0 13c6279 -m "islet 0.1.0"
+git tag -a v0.1.1 1e5f1e3 -m "islet 0.1.1"
+git tag -a v0.1.2 9d32454 -m "islet 0.1.2"
 ```
 
 These commits predate `.github/workflows/release.yml`, and GitHub runs the
@@ -107,13 +107,13 @@ workflow only needs the two secrets above for a `.pfx`.
 There is no in-app updater (`tauri-plugin-updater` is not used: it would need
 its own signing key and update manifest, and unsigned Windows installers would
 still hit SmartScreen). Instead the app checks
-`https://api.github.com/repos/joezhuo2/clawed/releases/latest` a minute after
+`https://api.github.com/repos/joezhuo2/islet/releases/latest` a minute after
 launch and then daily, and shows a tray item linking to the release page when
 the tag is a newer `vX.Y.Z`. Users install over the old version.
 
 Installed hooks survive updates: `~/.claude/settings.json` points at the copy
-in `%LOCALAPPDATA%\clawed\bin` (macOS: `~/Library/Application
-Support/clawed/bin`), and at launch the app replaces that copy when it differs
+in `%LOCALAPPDATA%\islet\bin` (macOS: `~/Library/Application
+Support/islet/bin`), and at launch the app replaces that copy when it differs
 from the hook bundled with the new version. A copy held open by a running
 hook is renamed aside first; if the swap still fails it is retried on the
 next launch.
@@ -135,7 +135,7 @@ secrets are set:
 Notarization runs only when a certificate is set too. Without a certificate
 the workflow ad-hoc signs (`APPLE_SIGNING_IDENTITY=-`), which Apple silicon
 needs to run the binary at all; Gatekeeper then blocks the first launch until
-the user right-clicks → **Open**. Both `clawed` and the `clawed-hook` sidecar
+the user right-clicks → **Open**. Both `islet` and the `islet-hook` sidecar
 are signed by the bundler.
 
 ## Fresh-machine install test (Windows)
@@ -143,34 +143,42 @@ are signed by the bundler.
 Run on a clean Windows user profile (a new local account, or a VM snapshot)
 with Claude Code installed and signed in.
 
-- [ ] Verify the installer hash: `Get-FileHash clawed_*_x64-setup.exe` matches
+- [ ] Verify the installer hash: `Get-FileHash islet_*_x64-setup.exe` matches
       `SHA256SUMS.txt`.
 - [ ] Install. If unsigned, SmartScreen appears; note the exact wording.
 - [ ] First run: the island appears, the tray icon is present, no errors with
-      `CLAWED_DEBUG=1`.
+      `ISLET_DEBUG=1`.
 - [ ] Launch at login is registered (Task Manager → Startup apps) and the app
       starts after signing out and in.
 - [ ] Settings → **Install hooks…** shows a diff of `~/.claude/settings.json`,
       writes a backup next to it, and copies the hook to
-      `%LOCALAPPDATA%\clawed\bin`.
+      `%LOCALAPPDATA%\islet\bin`.
 - [ ] Start a Claude Code session: the session appears, the step and todo bar
       update, the usage rings show exact numbers (not "estimated").
 - [ ] Trigger a permission prompt: the island expands; **Allow** and **Deny**
       both reach Claude Code. Let one time out and confirm Claude Code shows
       its own prompt.
-- [ ] Quit clawed with an approval pending: Claude Code falls back to its own
+- [ ] Quit islet with an approval pending: Claude Code falls back to its own
       prompt immediately.
-- [ ] With clawed quit, Claude Code runs normally (the hook exits 0 silently).
+- [ ] With islet quit, Claude Code runs normally (the hook exits 0 silently).
 - [ ] Update: with hooks installed from the previous release, install this
       one over it without reinstalling hooks. After launch,
-      `%LOCALAPPDATA%\clawed\bin\clawed-hook.exe` has the new file's date
+      `%LOCALAPPDATA%\islet\bin\islet-hook.exe` has the new file's date
       and size, and sessions and approvals still work.
 - [ ] Update notice: while a newer release is published, the tray menu shows
       **Update available** and it opens the release page. With **Updates**
       off in Settings it doesn't appear after the next check.
-- [ ] Settings → **Uninstall hooks…** removes only clawed's entries.
+- [ ] Settings → **Uninstall hooks…** removes only islet's entries.
+- [ ] Bad `settings.json` (see `docs/robustness.md`): with the file set to
+      invalid JSON, Settings shows the error and **Install hooks…** is
+      disabled; with it marked read-only, Install reports "read-only" and the
+      file is unchanged. Restore the file afterwards.
+- [ ] Monitors, with the island shown: change display scaling (100% → 150%),
+      switch the primary display, unplug the display the island is on, plug
+      it back in. Within about 2 seconds of each change the pill is
+      top-center on the primary display at the right size.
 - [ ] Uninstall the app (Settings → Apps). If hooks are still installed at this
-      point, Claude Code must keep working: `%LOCALAPPDATA%\clawed\bin` holds
+      point, Claude Code must keep working: `%LOCALAPPDATA%\islet\bin` holds
       the hook copy, so check whether the uninstaller removes it and whether
       `~/.claude/settings.json` is left pointing at a missing binary.
 
@@ -178,8 +186,8 @@ with Claude Code installed and signed in.
 
 Run on a clean macOS user account (or a VM), once on Apple silicon and, if
 possible, once on Intel, with Claude Code installed and signed in. Run the
-app from a terminal with `CLAWED_DEBUG=1` the first time
-(`/Applications/clawed.app/Contents/MacOS/clawed`).
+app from a terminal with `ISLET_DEBUG=1` the first time
+(`/Applications/islet.app/Contents/MacOS/islet`).
 
 - [ ] `shasum -a 256` of the dmg matches `SHA256SUMS.txt`.
 - [ ] Gatekeeper: unsigned builds need right-click → **Open**; signed and
@@ -199,11 +207,13 @@ app from a terminal with `CLAWED_DEBUG=1` the first time
       GPU History while a GPU load runs.
 - [ ] Usage rings show exact numbers (the usage request works with the system
       TLS stack).
-- [ ] Launch at login: a LaunchAgent is registered and clawed starts after
+- [ ] Launch at login: a LaunchAgent is registered and islet starts after
       logging out and in.
 - [ ] Low memory mode: the island is torn down after 3 minutes idle and comes
       back on the next hook event, with no crash (panel to window conversion).
 - [ ] Install / Uninstall hooks as in the Windows list; the hook is copied to
-      `~/Library/Application Support/clawed/bin`.
-- [ ] Unplug / switch the primary display while the island is shown.
+      `~/Library/Application Support/islet/bin`.
+- [ ] Unplug / switch the primary display and change its resolution while the
+      island is shown: within about 2 seconds the pill is back below the menu
+      bar of the new primary display.
 - [ ] Record memory with `scripts/measure-memory.sh` in `docs/memory.md`.

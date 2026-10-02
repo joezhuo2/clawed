@@ -4,9 +4,9 @@
 
 use serde::Deserialize;
 
-const LATEST_URL: &str = "https://api.github.com/repos/joezhuo2/clawed/releases/latest";
+const LATEST_URL: &str = "https://api.github.com/repos/joezhuo2/islet/releases/latest";
 /// Only release pages of this repository are ever opened.
-const RELEASES_PREFIX: &str = "https://github.com/joezhuo2/clawed/releases/";
+const RELEASES_PREFIX: &str = "https://github.com/joezhuo2/islet/releases/";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Release {
@@ -53,7 +53,7 @@ pub fn check() -> Result<Option<Release>, String> {
     let mut resp = crate::oauth::agent()
         .get(LATEST_URL)
         .header("Accept", "application/vnd.github+json")
-        .header("User-Agent", concat!("clawed/", env!("CARGO_PKG_VERSION")))
+        .header("User-Agent", concat!("islet/", env!("CARGO_PKG_VERSION")))
         .call()
         .map_err(|e| e.to_string())?;
     let body = resp.body_mut().read_to_string().map_err(|e| e.to_string())?;
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn release_selection() {
-        let url = "https://github.com/joezhuo2/clawed/releases/tag/v0.1.6";
+        let url = "https://github.com/joezhuo2/islet/releases/tag/v0.1.6";
         assert_eq!(
             newer_release(&body("v0.1.6", url, false), "0.1.5"),
             Some(Release { version: "0.1.6".into(), url: url.into() })

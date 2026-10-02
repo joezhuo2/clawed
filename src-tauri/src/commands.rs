@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use clawed_proto::{now_ms, Behavior};
+use islet_proto::{now_ms, Behavior};
 use serde::Serialize;
 use tauri::{AppHandle, State};
 
@@ -20,8 +20,8 @@ pub fn get_state(shared: Shr) -> Snapshot {
 
 #[tauri::command]
 pub fn decide(shared: Shr, id: String, allow: bool) -> bool {
-    if std::env::var_os("CLAWED_DEBUG").is_some() {
-        eprintln!("[clawed] decide {id} allow={allow}");
+    if std::env::var_os("ISLET_DEBUG").is_some() {
+        eprintln!("[islet] decide {id} allow={allow}");
     }
     let behavior = if allow { Behavior::Allow } else { Behavior::Deny };
     let session = lock(&shared.approvals).decide(&id, behavior);
@@ -34,8 +34,8 @@ pub fn decide(shared: Shr, id: String, allow: bool) -> bool {
 
 #[tauri::command]
 pub async fn set_island_height(app: AppHandle, height: f64) -> Result<(), String> {
-    if std::env::var_os("CLAWED_DEBUG").is_some() {
-        eprintln!("[clawed] set_island_height {height}");
+    if std::env::var_os("ISLET_DEBUG").is_some() {
+        eprintln!("[islet] set_island_height {height}");
     }
     crate::window::set_height(&app, height).map_err(|e| e.to_string())
 }
@@ -89,7 +89,7 @@ pub struct InstallerStatus {
 }
 
 fn hook_file_name() -> &'static str {
-    if cfg!(windows) { "clawed-hook.exe" } else { "clawed-hook" }
+    if cfg!(windows) { "islet-hook.exe" } else { "islet-hook" }
 }
 
 /// The hook shipped next to the app executable.
@@ -102,7 +102,7 @@ fn hook_source() -> Option<PathBuf> {
 fn hook_target() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(std::env::temp_dir)
-        .join("clawed")
+        .join("islet")
         .join("bin")
         .join(hook_file_name())
 }
@@ -134,13 +134,20 @@ pub fn installer_status() -> InstallerStatus {
         error: None,
     };
     match installer::read_settings(&path) {
-        Ok(current) => InstallerStatus {
-            installed: installer::is_installed(&current),
-            foreign_statusline: current.get("statusLine").is_some_and(|s| !installer::is_ours(s)),
-            install_diff: installer::diff(&current, &installer::install(&current, &hook)),
-            uninstall_diff: installer::diff(&current, &installer::uninstall(&current)),
-            ..base
-        },
+        Ok(current) => {
+            let (install_diff, error) = match installer::install(&current, &hook) {
+                Ok(new) => (installer::diff(&current, &new), None),
+                Err(e) => (String::new(), Some(e)),
+            };
+            InstallerStatus {
+                installed: installer::is_installed(&current),
+                foreign_statusline: current.get("statusLine").is_some_and(|s| !installer::is_ours(s)),
+                install_diff,
+                uninstall_diff: installer::diff(&current, &installer::uninstall(&current)),
+                error,
+                ..base
+            }
+        }
         Err(e) => InstallerStatus { error: Some(format!("cannot read {}: {e}", path.display())), ..base },
     }
 }
@@ -152,10 +159,10 @@ pub fn installer_apply(shared: Shr, install: bool) -> Result<String, String> {
     let current = installer::read_settings(&path).map_err(|e| e.to_string())?;
     let target = hook_target();
     let new = if install {
-        let src = hook_source().ok_or("clawed-hook was not found next to the app")?;
+        let src = hook_source().ok_or("islet-hook was not found next to the app")?;
         let data_dir = target.parent().and_then(|p| p.parent()).ok_or("bad data dir")?;
         let installed = installer::install_hook_binary(&src, data_dir).map_err(|e| e.to_string())?;
-        installer::install(&current, &installed.to_string_lossy())
+        installer::install(&current, &installed.to_string_lossy())?
     } else {
         installer::uninstall(&current)
     };

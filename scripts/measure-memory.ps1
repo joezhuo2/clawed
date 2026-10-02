@@ -1,10 +1,10 @@
-# Sums memory of clawed.exe and every descendant process (msedgewebview2).
+# Sums memory of islet.exe and every descendant process (msedgewebview2).
 # Usage: powershell -File scripts/measure-memory.ps1 [-Label name]
 param([string]$Label = "sample")
 
 $all = Get-CimInstance Win32_Process
-$root = $all | Where-Object { $_.Name -eq "clawed.exe" } | Select-Object -First 1
-if (-not $root) { Write-Output "clawed.exe is not running"; exit 1 }
+$root = $all | Where-Object { $_.Name -eq "islet.exe" } | Select-Object -First 1
+if (-not $root) { Write-Output "islet.exe is not running"; exit 1 }
 
 $ids = @($root.ProcessId)
 $queue = [System.Collections.Queue]::new()

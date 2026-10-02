@@ -1,7 +1,7 @@
 # Memory measurements
 
 Windows 11, release build (`npx tauri build --no-bundle`), 2880x1800 at 200% scale.
-Measured with `scripts/measure-memory.ps1`, which sums `clawed.exe` and every
+Measured with `scripts/measure-memory.ps1`, which sums `islet.exe` and every
 descendant process (the WebView2 browser, GPU, renderer and utility processes).
 
 Working set counts shared pages, so it overstates the real cost; private bytes is
@@ -30,20 +30,20 @@ Island visible and idle, same build, varying only `additionalBrowserArgs`
 | `--disable-gpu --disable-gpu-compositing` | 7 | 308 MB | 100 MB | yes |
 
 `--disable-gpu` is the default. Before it, the GPU process alone was about
-120 MB private. Override with the `CLAWED_WEBVIEW_ARGS` environment variable,
+120 MB private. Override with the `ISLET_WEBVIEW_ARGS` environment variable,
 which replaces the whole argument string.
 
 ## Reproduce
 
 ```bash
-export CLAWED_SOCKET=clawed-measure CLAWED_NO_AUTOSTART=1
-./target/release/clawed.exe --autostarted &   # torn down: no window until a hook event
+export ISLET_SOCKET=islet-measure ISLET_NO_AUTOSTART=1
+./target/release/islet.exe --autostarted &   # torn down: no window until a hook event
 powershell -File scripts/measure-memory.ps1 -Label torn-down
 ./target/release/replay.exe fixtures/sample-session.jsonl &
 powershell -File scripts/measure-memory.ps1 -Label busy
 ```
 
-`CLAWED_SOCKET` keeps real Claude Code sessions from waking the test instance.
+`ISLET_SOCKET` keeps real Claude Code sessions from waking the test instance.
 
 ## macOS
 
@@ -51,21 +51,39 @@ Not measured yet. On a Mac, with a release build (`npx tauri build --bundles
 app`):
 
 ```bash
-export CLAWED_SOCKET=clawed-measure CLAWED_NO_AUTOSTART=1
-./target/release/bundle/macos/clawed.app/Contents/MacOS/clawed --autostarted &
+export ISLET_SOCKET=islet-measure ISLET_NO_AUTOSTART=1
+./target/release/bundle/macos/islet.app/Contents/MacOS/islet --autostarted &
 sh scripts/measure-memory.sh torn-down
 ./target/release/replay fixtures/sample-session.jsonl &
 sh scripts/measure-memory.sh busy
 ```
 
-`measure-memory.sh` sums RSS of `clawed` and the WebKit processes
+`measure-memory.sh` sums RSS of `islet` and the WebKit processes
 (`com.apple.WebKit.WebContent`, `Networking`, `GPU`) started after it, since
-WebKit's XPC services are children of launchd rather than of clawed. Keep
+WebKit's XPC services are children of launchd rather than of islet. Keep
 Safari and other WebKit apps closed while measuring. It also prints each
 process's `phys_footprint`, the closest equivalent of private bytes; record
 both in a table like the Windows one above.
 
+## Soak test
+
+`scripts/soak.ps1` starts a release build on its own socket (`islet-soak`),
+replays `fixtures/sample-session.jsonl` in a loop with fresh session ids each
+time (`replay --fresh-ids`), samples memory, handles and threads every few
+minutes into a CSV, and stops the instance at the end. Each loop also lets the
+fixture's approval run into the 62 s server timeout, so that path is exercised
+too.
+
+```powershell
+npx tauri build --no-bundle
+powershell -File scripts/soak.ps1 -Hours 4
+```
+
+Quit any other islet first; the single-instance guard would otherwise hand the
+launch to it. Pass: total private bytes, backend private bytes and handle count
+over the last hour within a few MB (handles: a few dozen) of the first hour.
+
 ## Not yet done
 
-- Multi-hour soak test (replay in a loop, confirm flat memory).
+- Multi-hour soak run. The script exists (above); no run recorded yet.
 - macOS numbers (procedure above).

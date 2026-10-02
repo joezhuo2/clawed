@@ -18,13 +18,13 @@ pub struct UsageLine {
 impl UsageLine {
     /// Tokens occupying the context window after this response.
     pub fn context_tokens(&self) -> u64 {
-        self.input + self.cache_creation + self.cache_read
+        self.input.saturating_add(self.cache_creation).saturating_add(self.cache_read)
     }
 
     /// Tokens counted toward the plan usage estimate. Cache reads are
     /// excluded since they are far cheaper than fresh input.
     pub fn billable_tokens(&self) -> u64 {
-        self.input + self.cache_creation + self.output
+        self.input.saturating_add(self.cache_creation).saturating_add(self.output)
     }
 }
 
@@ -115,7 +115,7 @@ pub fn parse_text(line: &str) -> Option<String> {
         .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
         .find_map(|b| b.get("text").and_then(|t| t.as_str()))?;
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    (!text.is_empty()).then(|| clawed_proto::truncate(&text, NARRATION_MAX))
+    (!text.is_empty()).then(|| islet_proto::truncate(&text, NARRATION_MAX))
 }
 
 /// Parses `YYYY-MM-DDTHH:MM:SS[.fff]Z` to Unix milliseconds.

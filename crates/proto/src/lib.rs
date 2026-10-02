@@ -1,4 +1,4 @@
-//! Wire types shared by `clawed-hook` and the clawed backend.
+//! Wire types shared by `islet-hook` and the islet backend.
 //!
 //! Messages are newline-delimited JSON over a per-user local socket
 //! (named pipe on Windows, Unix socket elsewhere).
@@ -95,9 +95,9 @@ pub struct Window {
     pub resets_at: Option<u64>,
 }
 
-/// Socket name for the current user. `CLAWED_SOCKET` overrides it (tests, dev).
+/// Socket name for the current user. `ISLET_SOCKET` overrides it (tests, dev).
 pub fn socket_name() -> String {
-    if let Ok(name) = std::env::var("CLAWED_SOCKET") {
+    if let Ok(name) = std::env::var("ISLET_SOCKET") {
         if !name.is_empty() {
             return name;
         }
@@ -109,7 +109,7 @@ pub fn socket_name() -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
-    format!("clawed-{user}")
+    format!("islet-{user}")
 }
 
 pub fn now_ms() -> u64 {

@@ -2,7 +2,7 @@
 
 use std::collections::VecDeque;
 
-use clawed_proto::{AppMsg, Behavior};
+use islet_proto::{AppMsg, Behavior};
 use serde::Serialize;
 use tokio::sync::oneshot;
 

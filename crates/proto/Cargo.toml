@@ -1,5 +1,5 @@
 [package]
-name = "clawed-proto"
+name = "islet-proto"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

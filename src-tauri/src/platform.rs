@@ -32,7 +32,7 @@ mod mac {
 
 /// Turns the island into a non-activating NSPanel at status-bar level, on
 /// every Space and over full-screen apps. Clicking it never activates
-/// clawed or steals focus from the terminal. Main thread only.
+/// islet or steals focus from the terminal. Main thread only.
 #[cfg(target_os = "macos")]
 pub fn prepare_island(win: &WebviewWindow) {
     use tauri_nspanel::{CollectionBehavior, PanelLevel, StyleMask, WebviewWindowExt};

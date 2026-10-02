@@ -4,7 +4,7 @@ use std::io;
 
 use interprocess::local_socket::{prelude::*, Name};
 
-/// Named pipe `\\.\pipe\clawed-<user>` on Windows.
+/// Named pipe `\\.\pipe\islet-<user>` on Windows.
 #[cfg(windows)]
 pub fn name() -> io::Result<Name<'static>> {
     use interprocess::local_socket::GenericNamespaced;

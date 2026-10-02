@@ -1,11 +1,67 @@
 # Changelog
 
-All notable changes to clawed are listed here. The format follows
+All notable changes to islet (named clawed before 0.2.1) are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/). Until 1.0, minor versions may
 change behavior.
 
 ## [Unreleased]
+
+## [0.2.1] - 2026-10-02
+
+Renamed from clawed to islet, plus a robustness and branding pass before the
+first public release. Details in `docs/robustness.md`.
+
+### Changed
+
+- **Renamed to islet.** "clawed" sounded too close to "Claude"; Anthropic's
+  guidelines ask that third-party products keep their own branding and not
+  appear to be an Anthropic product. Everything follows the new name: app and
+  binaries (`islet`, `islet-hook`), crates, bundle identifier
+  (`dev.islet.app`), socket (`islet-<user>`), config and data directories,
+  settings backup names and the environment variables (`ISLET_SOCKET`,
+  `ISLET_DEBUG`, `ISLET_NO_AUTOSTART`, `ISLET_WEBVIEW_ARGS`,
+  `ISLET_APPROVAL_TIMEOUT_MS`).
+- Upgrading from clawed: settings are copied from the old `clawed` config
+  directory on first launch. Hooks registered by clawed point at the old
+  `clawed-hook` and stop reaching the app; Settings opens on first launch, and
+  **Install hooks** replaces them (Uninstall also still recognises them).
+  Uninstall the old clawed app separately; its launch-at-login entry and
+  `clawed/bin` data folder are not removed by islet.
+
+### Added
+
+- App icon: the island pill over three claw scratches, in the island's blue
+  and violet, on a dark tile. Drawn by `src-tauri/icons/make_icon.py`
+  (standard library only); all sizes regenerated with `npx tauri icon`.
+- The non-affiliation notice now also appears at the bottom of the Settings
+  window and in the installer metadata (`longDescription`, `copyright`).
+- `scripts/soak.ps1`: starts a test instance, replays the fixture in a loop and
+  logs memory, handles and threads to a CSV. `replay --fresh-ids` gives each
+  run new session ids.
+
+### Fixed
+
+- Install hooks no longer overwrites a `~/.claude/settings.json` whose root is
+  not a JSON object, or whose `hooks` (or one of its events) has an
+  unexpected type. It refuses with a message instead, and the Install button
+  is disabled while Settings shows the error.
+- A read-only `settings.json` is reported as such instead of being replaced
+  (macOS/Linux) or failing with a generic error (Windows). A failed write
+  leaves no temp or backup file behind.
+- A symlinked `settings.json` is written through to its target instead of
+  being replaced by a regular file.
+- islet's own settings file is moved aside to `settings.json.corrupt` when it
+  does not parse, instead of being overwritten with defaults on the next save.
+- The island is placed again when the primary monitor changes (plugged,
+  unplugged, switched, resolution or display scaling changed), so it no
+  longer stays off-screen or in the wrong spot.
+- Status line `resets_at` given as a float is accepted; other unexpected
+  shapes leave the reset time unknown instead of dropping the window.
+- Token totals from transcripts saturate instead of overflowing on absurd
+  values, and a huge `idle_minutes` can no longer overflow.
+- `replay` prints an error instead of panicking on a missing fixture and skips
+  lines that are not JSON.
 
 ## [0.2.0] - 2026-10-01
 
@@ -164,11 +220,12 @@ Initial version, built from source only.
   menu, launch at login, low memory mode.
 - `replay` tool and synthetic fixtures.
 
-[Unreleased]: https://github.com/joezhuo2/clawed/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/joezhuo2/clawed/compare/v0.1.5...v0.2.0
-[0.1.5]: https://github.com/joezhuo2/clawed/compare/v0.1.4...v0.1.5
-[0.1.4]: https://github.com/joezhuo2/clawed/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/joezhuo2/clawed/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/joezhuo2/clawed/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/joezhuo2/clawed/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/joezhuo2/clawed/releases/tag/v0.1.0
+[Unreleased]: https://github.com/joezhuo2/islet/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/joezhuo2/islet/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/joezhuo2/islet/compare/v0.1.5...v0.2.0
+[0.1.5]: https://github.com/joezhuo2/islet/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/joezhuo2/islet/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/joezhuo2/islet/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/joezhuo2/islet/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/joezhuo2/islet/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/joezhuo2/islet/releases/tag/v0.1.0

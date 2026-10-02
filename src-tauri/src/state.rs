@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
-use clawed_proto::now_ms;
+use islet_proto::now_ms;
 use serde::Serialize;
 use tokio::sync::Notify;
 

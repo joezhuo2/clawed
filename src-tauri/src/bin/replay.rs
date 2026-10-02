@@ -1,14 +1,16 @@
-//! Replays fixture payloads into a running clawed app.
+//! Replays fixture payloads into a running islet app.
 //!
-//! `replay <fixtures.jsonl> [--speed N] [--hold SECS]`
+//! `replay <fixtures.jsonl> [--speed N] [--hold SECS] [--fresh-ids]`
 //!
 //! Sessions use this process as their parent pid, so they go stale shortly
 //! after the replay exits. `--hold` keeps the process alive at the end.
+//! `--fresh-ids` appends this process id to every session id, so repeated
+//! runs (the soak test) create new sessions instead of reusing old ones.
 
 use std::io::{BufRead, BufReader, Write};
 use std::time::Duration;
 
-use clawed_proto::{now_ms, pipe, strip_event, strip_status, AppMsg, HookMsg};
+use islet_proto::{now_ms, pipe, strip_event, strip_status, AppMsg, HookMsg};
 use interprocess::local_socket::{prelude::*, Stream};
 use serde_json::Value;
 
@@ -39,7 +41,7 @@ fn shift_resets(raw: &Value, recorded_ms: Option<u64>, now_ms: u64) -> Value {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(path) = args.iter().find(|a| !a.starts_with("--") && a.parse::<f64>().is_err()) else {
-        eprintln!("usage: replay <fixtures.jsonl> [--speed N] [--hold SECS]");
+        eprintln!("usage: replay <fixtures.jsonl> [--speed N] [--hold SECS] [--fresh-ids]");
         std::process::exit(2);
     };
     let flag = |name: &str| {
@@ -47,14 +49,21 @@ fn main() {
     };
     let speed = flag("--speed").unwrap_or(1.0).max(0.01);
     let hold = flag("--hold").unwrap_or(0.0);
+    let fresh_ids = args.iter().any(|a| a == "--fresh-ids");
 
-    let text = std::fs::read_to_string(path).expect("read fixtures");
+    let text = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("replay: cannot read {path}: {e}");
+        std::process::exit(1);
+    });
     let ppid = std::process::id();
     let mut prev_ts: Option<u64> = None;
     let mut waiters = Vec::new();
 
     for (i, line) in text.lines().enumerate().filter(|(_, l)| !l.trim().is_empty()) {
-        let v: Value = serde_json::from_str(line).expect("fixture line is JSON");
+        let Ok(v) = serde_json::from_str::<Value>(line) else {
+            eprintln!("replay: line {} is not JSON, skipped", i + 1);
+            continue;
+        };
         let raw = v.get("payload").unwrap_or(&v);
         if let (Some(ts), Some(prev)) = (v.get("ts").and_then(Value::as_u64), prev_ts) {
             std::thread::sleep(Duration::from_millis((ts.saturating_sub(prev) as f64 / speed) as u64));
@@ -62,7 +71,12 @@ fn main() {
         prev_ts = v.get("ts").and_then(Value::as_u64).or(prev_ts);
 
         let now = now_ms();
-        let shifted = shift_resets(raw, v.get("ts").and_then(Value::as_u64), now);
+        let mut shifted = shift_resets(raw, v.get("ts").and_then(Value::as_u64), now);
+        if fresh_ids {
+            if let Some(id) = shifted.get("session_id").and_then(Value::as_str) {
+                shifted["session_id"] = Value::from(format!("{id}-{ppid}"));
+            }
+        }
         let raw = &shifted;
         let msg = if let Some(ev) = strip_event(raw, ppid, now) {
             if ev.kind == "PermissionRequest" {
@@ -96,7 +110,7 @@ fn main() {
                 }
             }
             Err(e) => {
-                eprintln!("cannot reach clawed ({e}); is the app running?");
+                eprintln!("cannot reach islet ({e}); is the app running?");
                 std::process::exit(1);
             }
         }

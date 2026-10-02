@@ -133,11 +133,17 @@ pub fn strip_event(raw: &Value, ppid: u32, ts: u64) -> Option<Event> {
     })
 }
 
+/// Epoch seconds as an integer or a float; anything else (a string, a
+/// negative number) is treated as unknown rather than rejected.
+fn epoch_secs(v: &Value) -> Option<u64> {
+    v.as_u64().or_else(|| v.as_f64().filter(|f| f.is_finite() && *f >= 0.0).map(|f| f as u64))
+}
+
 fn window(v: Option<&Value>) -> Option<Window> {
     let v = v?;
     Some(Window {
         used_pct: v.get("used_percentage")?.as_f64()?,
-        resets_at: v.get("resets_at").and_then(Value::as_u64),
+        resets_at: v.get("resets_at").and_then(epoch_secs),
     })
 }
 
@@ -321,5 +327,48 @@ mod tests {
                 );
             }
         }
+    }
+    #[test]
+    fn status_without_rate_limits_or_context() {
+        let st = strip_status(&json!({"session_id": "s", "model": "not an object"}), 1, 2).unwrap();
+        assert!(st.five_hour.is_none() && st.seven_day.is_none());
+        assert!(st.context_used_pct.is_none() && st.model.is_none());
+    }
+
+    #[test]
+    fn status_tolerates_changed_shapes() {
+        let raw = json!({
+            "session_id": "s",
+            "new_top_level_field": {"x": 1},
+            "context_window": "gone",
+            "rate_limits": {
+                "five_hour": {"used_percentage": 12.5, "resets_at": 1790865600.9, "extra": true},
+                "seven_day": {"used_percentage": "40", "resets_at": 1},
+                "opus_weekly": {"used_percentage": 3}
+            }
+        });
+        let st = strip_status(&raw, 1, 2).unwrap();
+        assert_eq!(st.five_hour, Some(Window { used_pct: 12.5, resets_at: Some(1_790_865_600) }));
+        // A non-numeric percentage drops the window instead of guessing.
+        assert!(st.seven_day.is_none());
+        assert!(st.context_used_pct.is_none());
+        let iso = json!({"session_id": "s", "rate_limits": {"five_hour": {"used_percentage": 1, "resets_at": "2026-10-01T00:00:00Z"}}});
+        assert_eq!(strip_status(&iso, 1, 2).unwrap().five_hour.unwrap().resets_at, None);
+    }
+
+    #[test]
+    fn event_tolerates_changed_shapes() {
+        // Unknown event kind, unknown fields, tool_input of the wrong type.
+        let raw = json!({
+            "session_id": "s", "hook_event_name": "SomethingNew", "cwd": 5,
+            "tool_name": "Bash", "tool_input": "not an object", "brand_new": [1, 2]
+        });
+        let ev = strip_event(&raw, 1, 2).unwrap();
+        assert_eq!(ev.kind, "SomethingNew");
+        assert_eq!(ev.cwd, "");
+        assert!(ev.tool_summary.is_none());
+        // Without a session id or event name there is nothing to forward.
+        assert!(strip_event(&json!({"hook_event_name": "Stop"}), 1, 2).is_none());
+        assert!(strip_event(&json!({"session_id": 7, "hook_event_name": "Stop"}), 1, 2).is_none());
     }
 }

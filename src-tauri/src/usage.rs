@@ -1,7 +1,7 @@
 //! Plan usage rings: exact data from the account usage endpoint or the status
 //! line, local estimate otherwise.
 
-use clawed_proto::{StatusLine, Window};
+use islet_proto::{StatusLine, Window};
 use serde::Serialize;
 
 use crate::tailer::EstimateTotals;

@@ -1,4 +1,4 @@
-# clawed v1 design
+# islet v1 design
 
 A cross-platform (Windows + macOS) dynamic island built with Tauri 2 (Rust + Svelte). It tracks Claude Code sessions live, shows context and plan usage, and answers permission prompts. Functionality only: no logo, mascot, sounds, or Anthropic/Claude brand assets. Inspired by coucou; nothing from it is reused.
 
@@ -8,10 +8,10 @@ Development and testing happen on Windows. macOS code is verified by `cargo clip
 
 | Topic | Decision |
 | --- | --- |
-| Name | `clawed` (repo, crates, installer) |
+| Name | `islet` (repo, crates, installer) |
 | Scope | Full v1 |
 | Frontend | Svelte 5 + Vite, plain CSS |
-| Hook shipping | Separate tiny `clawed-hook` binary, std + sync `interprocess`, no async runtime |
+| Hook shipping | Separate tiny `islet-hook` binary, std + sync `interprocess`, no async runtime |
 | Approvals | `PermissionRequest` hook only (no PreToolUse fallback) |
 | Approval timeout | 60 s in the hook; settings `timeout` 65 s |
 | Usage source | Account usage endpoint (`/api/oauth/usage`, Claude Code's OAuth token), Claude Code status line JSON (`rate_limits.*`, `context_window.*`), local JSONL estimate until the first status line arrives or when it goes stale |
@@ -23,7 +23,7 @@ Development and testing happen on Windows. macOS code is verified by `cargo clip
 ## Architecture
 
 ```
-Claude Code --stdin JSON--> clawed-hook --named pipe / unix socket--> backend --Tauri events--> island UI
+Claude Code --stdin JSON--> islet-hook --named pipe / unix socket--> backend --Tauri events--> island UI
      ^                           ^                                       |
      |                           +------------- Decision ----------------+
      +-- stdout decision JSON ---+
@@ -32,10 +32,10 @@ Claude Code --stdin JSON--> clawed-hook --named pipe / unix socket--> backend --
 Workspace:
 
 ```
-clawed/
+islet/
   Cargo.toml            workspace
   crates/proto/         serde wire types, pipe name, payload stripping
-  crates/hook/          clawed-hook binary
+  crates/hook/          islet-hook binary
   src-tauri/            backend app
   ui/                   Svelte frontend
   fixtures/             captured payloads (*.jsonl) + replay input
@@ -46,7 +46,7 @@ clawed/
 
 Newline-delimited JSON over one connection per hook invocation. Every message carries `v: 1`; the backend drops messages with an unknown `v`.
 
-- Pipe name: `\\.\pipe\clawed-<username>` (Windows), `$TMPDIR/clawed-<uid>.sock` (macOS), via `interprocess` local sockets.
+- Pipe name: `\\.\pipe\islet-<username>` (Windows), `$TMPDIR/islet-<uid>.sock` (macOS), via `interprocess` local sockets.
 - Access (`proto::peer`): on Windows the server pipe is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`, `PIPE_REJECT_REMOTE_CLIENTS` and a protected DACL `D:P(A;;GA;;;<user SID>)`. Both ends check the peer: the hook gets the server pid from the pipe and compares its token user SID with its own (on Unix, the peer euid); on mismatch it sends nothing and exits 0. The backend drops clients that fail the same check.
 - `HookMsg::Event(Event)` fire-and-forget.
 - `HookMsg::Approval { id, event }` then the hook reads one line: `AppMsg::Decision { id, behavior: allow | deny }` or `AppMsg::Release { id }` (no decision).
@@ -64,14 +64,14 @@ Stripping (in `proto`, unit tested):
 
 ## Hook binary
 
-- `clawed-hook` reads stdin (max 4 MB, then truncates), parses, strips, connects, writes, exits.
+- `islet-hook` reads stdin (max 4 MB, then truncates), parses, strips, connects, writes, exits.
 - Connect failure or any error: exit 0, empty stdout. This is the core guarantee and is tested first.
-- `clawed-hook statusline`: forwards `StatusLine`, prints a one-line status (`<model> · ctx 42% · 5h 31% · 7d 12%`) so the terminal status line stays useful.
-- For `PermissionRequest`: sends `Approval`, waits up to 60 s. On `Decision` prints `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}` (deny adds `"message":"Denied from clawed"`). On timeout, `Release`, EOF, or error prints nothing, exits 0, and Claude Code shows its own prompt.
+- `islet-hook statusline`: forwards `StatusLine`, prints a one-line status (`<model> · ctx 42% · 5h 31% · 7d 12%`) so the terminal status line stays useful.
+- For `PermissionRequest`: sends `Approval`, waits up to 60 s. On `Decision` prints `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}` (deny adds `"message":"Denied from islet"`). On timeout, `Release`, EOF, or error prints nothing, exits 0, and Claude Code shows its own prompt.
 - ppid: parent process id (`GetCurrentProcess` parent via `sysinfo` is too heavy; use `std::os::unix::process::parent_id` on Unix and a `CreateToolhelp32Snapshot` lookup on Windows).
 - Release profile: `opt-level="s"`, `lto`, `codegen-units=1`, `panic="abort"`, `strip`.
 
-Hook registration (exec form, no shell): `{"type":"command","command":"<abs>/clawed-hook.exe","args":[]}`. All events except `PermissionRequest` also get `"async": true` so Claude Code never waits on them. `PermissionRequest` gets `"timeout": 65`.
+Hook registration (exec form, no shell): `{"type":"command","command":"<abs>/islet-hook.exe","args":[]}`. All events except `PermissionRequest` also get `"async": true` so Claude Code never waits on them. `PermissionRequest` gets `"timeout": 65`.
 
 Events registered: `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `StopFailure`, `SubagentStop`, `PreCompact`, `PermissionRequest`, `TaskCreated`, `TaskCompleted`.
 
@@ -136,9 +136,9 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 - Quit
 
 ### Installer
-- Reads `~/.claude/settings.json`, writes `settings.json.clawed-backup-<ts>`, merges our handlers into `hooks.<Event>` arrays without touching others, sets `statusLine` only when none is set (otherwise leaves it and notes the estimate is used), shows a diff in the settings window, writes on confirm.
-- Our entries are identified by `command` ending in `clawed-hook` / `clawed-hook.exe`. Uninstall removes only those, and removes `statusLine` only if it is ours.
-- The hook binary is copied to the app data dir (`%LOCALAPPDATA%\clawed\bin`, `~/Library/Application Support/clawed/bin`) so the path is stable across app updates. At launch, if that copy exists and differs from the bundled hook, it is replaced (a copy held by a running hook is renamed aside first); if hooks were never installed nothing is created.
+- Reads `~/.claude/settings.json`, writes `settings.json.islet-backup-<ts>`, merges our handlers into `hooks.<Event>` arrays without touching others, sets `statusLine` only when none is set (otherwise leaves it and notes the estimate is used), shows a diff in the settings window, writes on confirm.
+- Our entries are identified by `command` ending in `islet-hook` / `islet-hook.exe`. Uninstall removes only those, and removes `statusLine` only if it is ours.
+- The hook binary is copied to the app data dir (`%LOCALAPPDATA%\islet\bin`, `~/Library/Application Support/islet/bin`) so the path is stable across app updates. At launch, if that copy exists and differs from the bundled hook, it is replaced (a copy held by a running hook is renamed aside first); if hooks were never installed nothing is created.
 
 ### Settings
 JSON in the app config dir: context window overrides, estimate caps (5 h, 7 d tokens), ring thresholds (70 / 90), low memory mode, pause approvals, idle teardown minutes (3), update check (on). Launch at login is read from the OS.

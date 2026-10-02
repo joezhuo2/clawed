@@ -496,57 +496,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clawed"
-version = "0.2.0"
-dependencies = [
- "clawed-proto",
- "dirs 6.0.0",
- "interprocess",
- "libc",
- "log",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
- "objc2-io-kit",
- "serde",
- "serde_json",
- "similar",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-nspanel",
- "tauri-plugin-autostart",
- "tauri-plugin-single-instance",
- "tempfile",
- "tokio",
- "ureq",
- "widestring",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "clawed-hook"
-version = "0.2.0"
-dependencies = [
- "clawed-proto",
- "interprocess",
- "serde_json",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "clawed-proto"
-version = "0.2.0"
-dependencies = [
- "interprocess",
- "libc",
- "serde",
- "serde_json",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "combine"
 version = "4.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1878,6 +1827,57 @@ name = "ipnet"
 version = "2.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
+
+[[package]]
+name = "islet"
+version = "0.2.1"
+dependencies = [
+ "dirs 6.0.0",
+ "interprocess",
+ "islet-proto",
+ "libc",
+ "log",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation",
+ "objc2-io-kit",
+ "serde",
+ "serde_json",
+ "similar",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-nspanel",
+ "tauri-plugin-autostart",
+ "tauri-plugin-single-instance",
+ "tempfile",
+ "tokio",
+ "ureq",
+ "widestring",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "islet-hook"
+version = "0.2.1"
+dependencies = [
+ "interprocess",
+ "islet-proto",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "islet-proto"
+version = "0.2.1"
+dependencies = [
+ "interprocess",
+ "libc",
+ "serde",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
 
 [[package]]
 name = "itoa"

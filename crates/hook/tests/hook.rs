@@ -5,15 +5,15 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use clawed_proto::{AppMsg, Behavior, HookMsg};
+use islet_proto::{AppMsg, Behavior, HookMsg};
 use interprocess::local_socket::{prelude::*, ListenerOptions, Name};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-/// Unique socket name for one test, as passed via `CLAWED_SOCKET`.
+/// Unique socket name for one test, as passed via `ISLET_SOCKET`.
 fn unique_socket() -> String {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-    let base = format!("clawed-test-{}-{n}", std::process::id());
+    let base = format!("islet-test-{}-{n}", std::process::id());
     if cfg!(windows) {
         base
     } else {
@@ -33,9 +33,9 @@ fn to_name(s: &str) -> Name<'static> {
 }
 
 fn run_hook(socket: &str, args: &[&str], stdin: &str, extra_env: &[(&str, &str)]) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_clawed-hook"));
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_islet-hook"));
     cmd.args(args)
-        .env("CLAWED_SOCKET", socket)
+        .env("ISLET_SOCKET", socket)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -148,10 +148,24 @@ fn approval_timeout_prints_nothing() {
     let socket = unique_socket();
     let _rx = fake_server(&socket, |_| None);
     let start = Instant::now();
-    let out = run_hook(&socket, &[], PERM, &[("CLAWED_APPROVAL_TIMEOUT_MS", "300")]);
+    let out = run_hook(&socket, &[], PERM, &[("ISLET_APPROVAL_TIMEOUT_MS", "300")]);
     assert!(out.status.success());
     assert!(out.stdout.is_empty());
     assert!(start.elapsed() < Duration::from_secs(3));
+}
+
+/// The app quit or crashed with the approval pending: the connection closes
+/// without a reply and Claude Code falls back to its own prompt at once,
+/// without waiting out the 60 s timeout.
+#[test]
+fn approval_app_gone_prints_nothing_quickly() {
+    let socket = unique_socket();
+    let _rx = fake_server(&socket, |_| None);
+    let start = Instant::now();
+    let out = run_hook(&socket, &[], PERM, &[]);
+    assert!(out.status.success());
+    assert!(out.stdout.is_empty());
+    assert!(start.elapsed() < Duration::from_secs(5), "took {:?}", start.elapsed());
 }
 
 #[test]

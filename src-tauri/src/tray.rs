@@ -30,7 +30,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<TrayIcon> {
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon(Variant::Idle))
         .icon_as_template(cfg!(target_os = "macos"))
-        .tooltip("clawed")
+        .tooltip("islet")
         .menu(&menu)
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_menu_event(on_menu)
@@ -116,7 +116,7 @@ fn menu(app: &AppHandle, snap: &Snapshot, shared: &Shared) -> tauri::Result<Menu
     menu.append(&item("hooks", "Install / uninstall hooks…")?)?;
     menu.append(&item("settings", "Settings…")?)?;
     menu.append(&sep()?)?;
-    menu.append(&item("quit", "Quit clawed")?)?;
+    menu.append(&item("quit", "Quit islet")?)?;
     Ok(menu)
 }
 
@@ -135,9 +135,9 @@ pub fn refresh(app: &AppHandle, shared: &Shared, snap: &Snapshot) {
         let _ = tray.set_icon(Some(icon(v)));
         let _ = tray.set_icon_as_template(cfg!(target_os = "macos"));
         let tip = match v {
-            Variant::Idle => "clawed",
-            Variant::Working => "clawed — working",
-            Variant::Approval => "clawed — approval needed",
+            Variant::Idle => "islet",
+            Variant::Working => "islet — working",
+            Variant::Approval => "islet — approval needed",
         };
         let _ = tray.set_tooltip(Some(tip));
     }

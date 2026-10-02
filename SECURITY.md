@@ -1,13 +1,13 @@
 # Security policy
 
-clawed answers Claude Code permission prompts. A bug that lets a tool call be
+islet answers Claude Code permission prompts. A bug that lets a tool call be
 allowed without your click, or lets another user or machine send decisions to
 your Claude Code sessions, is a security issue. Please report it privately.
 
 ## Reporting a vulnerability
 
 Use GitHub's private vulnerability reporting:
-[Report a vulnerability](https://github.com/joezhuo2/clawed/security/advisories/new)
+[Report a vulnerability](https://github.com/joezhuo2/islet/security/advisories/new)
 (the **Security** tab of the repository, then **Report a vulnerability**).
 
 Please don't open a public issue, discussion or pull request for a
@@ -15,11 +15,11 @@ vulnerability before a fix is released.
 
 Include what you can of:
 
-- clawed version, OS and version, Claude Code version
+- islet version, OS and version, Claude Code version
 - what an attacker needs (same user, another local user, network, a crafted
   transcript or settings file, ...)
 - steps or a proof of concept, and what happens versus what should happen
-- `CLAWED_DEBUG` output, if it helps (see the bug report template for how to
+- `ISLET_DEBUG` output, if it helps (see the bug report template for how to
   capture it). It contains your prompts, paths and tool inputs, so remove
   anything private first.
 
@@ -30,14 +30,14 @@ stay anonymous.
 
 ## Supported versions
 
-clawed is pre-1.0. Only the latest release gets security fixes; please check
+islet is pre-1.0. Only the latest release gets security fixes; please check
 that the issue still exists there.
 
 ## What counts
 
 In scope, for example:
 
-- A tool call is allowed (or denied) without the user choosing it in clawed,
+- A tool call is allowed (or denied) without the user choosing it in islet,
   or a decision is applied to a different session, tool call or input than
   the one shown on the approval card.
 - The approval card shows something other than what Claude Code will run
@@ -50,7 +50,7 @@ In scope, for example:
 - **Install hooks** writes anything other than the diff it showed, or
   registers a hook path another user can write to.
 - The Claude Code OAuth token is sent anywhere other than api.anthropic.com,
-  logged, or written to disk by clawed.
+  logged, or written to disk by islet.
 - The update notice opens anything other than this repository's release pages.
 
 Out of scope:
@@ -64,11 +64,11 @@ Out of scope:
 
 ## Design notes for reviewers
 
-- If clawed isn't running, or doesn't answer an approval within 60 seconds,
+- If islet isn't running, or doesn't answer an approval within 60 seconds,
   the hook exits 0 with no output and Claude Code shows its own prompt. The
   hook is meant to fail open to Claude Code's normal behavior, never to an
   automatic allow.
-- Pausing approvals or quitting clawed releases every pending approval back to
+- Pausing approvals or quitting islet releases every pending approval back to
   Claude Code.
 - On Windows the named pipe has a DACL for the current user only, rejects
   remote clients, is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`, and both

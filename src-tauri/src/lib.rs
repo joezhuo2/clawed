@@ -1,4 +1,4 @@
-//! clawed backend: IPC server, session store, meters, tray and island window.
+//! islet backend: IPC server, session store, meters, tray and island window.
 
 pub mod approvals;
 pub mod commands;
@@ -43,12 +43,12 @@ impl ipc::Host for AppHost {
 fn install_runtime() {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .thread_name("clawed-rt")
+        .thread_name("islet-rt")
         .build()
         .expect("tokio runtime");
     let handle = rt.handle().clone();
     std::thread::Builder::new()
-        .name("clawed-rt".into())
+        .name("islet-rt".into())
         .spawn(move || rt.block_on(std::future::pending::<()>()))
         .expect("runtime thread");
     tauri::async_runtime::set(handle);
@@ -66,6 +66,7 @@ pub fn run() {
     install_runtime();
 
     let settings_path = settings::settings_path();
+    settings::migrate_from_clawed(&settings_path);
     let shared = Arc::new(Shared::new(settings_path.clone(), Settings::load(&settings_path)));
     let autostarted = std::env::args().any(|a| a == "--autostarted");
     shared.autostarted.store(autostarted, Ordering::Relaxed);
@@ -97,7 +98,7 @@ pub fn run() {
             let handle = app.handle().clone();
             // Dev builds never register themselves as a login item.
             let first_run = !lock(&shared.settings).first_run_done;
-            let skip = cfg!(debug_assertions) || std::env::var_os("CLAWED_NO_AUTOSTART").is_some();
+            let skip = cfg!(debug_assertions) || std::env::var_os("ISLET_NO_AUTOSTART").is_some();
             if first_run && !skip {
                 if let Err(e) = handle.autolaunch().enable() {
                     log::warn!("enable autostart: {e}");
@@ -113,7 +114,7 @@ pub fn run() {
             tray::build(&handle)?;
             tasks::spawn_all(handle.clone(), shared.clone());
 
-            match clawed_proto::pipe::name() {
+            match islet_proto::pipe::name() {
                 Ok(name) => {
                     let (s, host) = (shared.clone(), Arc::new(AppHost(handle.clone())));
                     tauri::async_runtime::spawn(async move {
@@ -138,7 +139,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building clawed");
+        .expect("error while building islet");
 
     app.run(move |app, event| match event {
         // Closing the island or settings window must not quit the tray app.

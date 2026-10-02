@@ -4,7 +4,7 @@ use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clawed_proto::{now_ms, AppMsg, Event, HookMsg, PROTO_VERSION};
+use islet_proto::{now_ms, AppMsg, Event, HookMsg, PROTO_VERSION};
 use interprocess::local_socket::tokio::{prelude::*, Stream};
 use interprocess::local_socket::{ListenerOptions, Name};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -36,7 +36,7 @@ pub async fn serve(name: Name<'static>, shared: Arc<Shared>, host: Arc<dyn Host>
     let opts = {
         use interprocess::os::windows::local_socket::ListenerOptionsExt;
         use interprocess::os::windows::security_descriptor::SecurityDescriptor;
-        let sddl = widestring::U16CString::from_str(clawed_proto::peer::pipe_sddl()?)
+        let sddl = widestring::U16CString::from_str(islet_proto::peer::pipe_sddl()?)
             .map_err(io::Error::other)?;
         opts.security_descriptor(SecurityDescriptor::deserialize(&sddl)?)
     };
@@ -62,7 +62,7 @@ pub async fn serve(name: Name<'static>, shared: Arc<Shared>, host: Arc<dyn Host>
 }
 
 async fn handle(conn: Stream, shared: Arc<Shared>, host: Arc<dyn Host>) -> io::Result<()> {
-    if !conn.peer_creds().is_ok_and(|c| clawed_proto::peer::is_same_user(&c)) {
+    if !conn.peer_creds().is_ok_and(|c| islet_proto::peer::is_same_user(&c)) {
         log::warn!("ipc: rejected client running as another user");
         return Ok(());
     }
@@ -162,7 +162,7 @@ async fn on_approval(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clawed_proto::Behavior;
+    use islet_proto::Behavior;
     use interprocess::local_socket::tokio::Stream as TokioStream;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -175,7 +175,7 @@ mod tests {
 
     fn test_name() -> Name<'static> {
         let n = N.fetch_add(1, Ordering::SeqCst);
-        let base = format!("clawed-ipc-test-{}-{n}", std::process::id());
+        let base = format!("islet-ipc-test-{}-{n}", std::process::id());
         #[cfg(windows)]
         {
             base.to_ns_name::<interprocess::local_socket::GenericNamespaced>().unwrap()
@@ -196,7 +196,7 @@ mod tests {
             "session_id": "s1", "cwd": "/w/proj", "hook_event_name": kind,
             "tool_name": "Bash", "tool_input": {"command": "rm -rf x"}
         });
-        clawed_proto::strip_event(&raw, 7, now_ms()).unwrap()
+        islet_proto::strip_event(&raw, 7, now_ms()).unwrap()
     }
 
     async fn start() -> (Arc<Shared>, Name<'static>) {

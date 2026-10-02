@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(gpu_percent(&[("x_engtype_3D".into(), 250.0)]), Some(100.0));
     }
 
-    /// Machine-dependent: `cargo test -p clawed gpu_live -- --ignored --nocapture`.
+    /// Machine-dependent: `cargo test -p islet gpu_live -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn gpu_live() {

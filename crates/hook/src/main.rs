@@ -1,4 +1,4 @@
-//! `clawed-hook`: run by Claude Code on hook events and as the status line.
+//! `islet-hook`: run by Claude Code on hook events and as the status line.
 //!
 //! Guarantee: if the app is not running or anything goes wrong, exit 0 with
 //! no output, so Claude Code carries on exactly as if the hook were absent.
@@ -6,7 +6,7 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::time::Duration;
 
-use clawed_proto::{
+use islet_proto::{
     now_ms, peer, pipe, strip_event, strip_status, AppMsg, Behavior, HookMsg, StatusLine,
 };
 use interprocess::local_socket::{prelude::*, Stream};
@@ -107,7 +107,7 @@ fn run_event(raw: &Value) {
 }
 
 fn approval_timeout() -> Duration {
-    std::env::var("CLAWED_APPROVAL_TIMEOUT_MS")
+    std::env::var("ISLET_APPROVAL_TIMEOUT_MS")
         .ok()
         .and_then(|v| v.parse().ok())
         .map(Duration::from_millis)
@@ -117,7 +117,7 @@ fn approval_timeout() -> Duration {
 fn print_decision(behavior: Behavior) {
     let decision = match behavior {
         Behavior::Allow => serde_json::json!({ "behavior": "allow" }),
-        Behavior::Deny => serde_json::json!({ "behavior": "deny", "message": "Denied from clawed" }),
+        Behavior::Deny => serde_json::json!({ "behavior": "deny", "message": "Denied from islet" }),
     };
     let out = serde_json::json!({
         "hookSpecificOutput": { "hookEventName": "PermissionRequest", "decision": decision }

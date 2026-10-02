@@ -8,7 +8,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use clawed_proto::Window;
+use islet_proto::Window;
 use serde::Deserialize;
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
@@ -90,7 +90,7 @@ pub fn fetch(token: &str) -> Result<ApiUsage, String> {
         .get(USAGE_URL)
         .header("Authorization", &format!("Bearer {token}"))
         .header("anthropic-beta", BETA)
-        .header("User-Agent", concat!("clawed/", env!("CARGO_PKG_VERSION")))
+        .header("User-Agent", concat!("islet/", env!("CARGO_PKG_VERSION")))
         .call()
         .map_err(|e| e.to_string())?;
     let body = resp.body_mut().read_to_string().map_err(|e| e.to_string())?;
@@ -179,12 +179,12 @@ mod tests {
 
 #[cfg(test)]
 mod live {
-    /// `cargo test -p clawed --lib oauth::live -- --ignored --nocapture`
+    /// `cargo test -p islet --lib oauth::live -- --ignored --nocapture`
     #[test]
     #[ignore = "hits the network with the local Claude login"]
     fn fetch_live() {
         let dir = dirs::home_dir().unwrap().join(".claude");
-        let tok = super::read_token(&dir, clawed_proto::now_ms()).expect("token");
+        let tok = super::read_token(&dir, islet_proto::now_ms()).expect("token");
         println!("{:?}", super::fetch(&tok).unwrap());
     }
 }

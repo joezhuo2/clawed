@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "clawed",
-  "version": "0.2.0",
-  "identifier": "dev.clawed.app",
+  "productName": "islet",
+  "version": "0.2.1",
+  "identifier": "dev.islet.app",
   "build": {
     "beforeDevCommand": "npm run build:hook && npm run dev",
     "devUrl": "http://localhost:1420",
@@ -19,6 +19,10 @@
   },
   "bundle": {
     "active": true,
+    "publisher": "Joe Zhuo",
+    "copyright": "Copyright (c) 2026 Joe Zhuo. MIT License. Not affiliated with Anthropic.",
+    "shortDescription": "Dynamic island for Claude Code sessions",
+    "longDescription": "An independent always-on-top island that shows Claude Code sessions, plan usage and permission prompts. Not affiliated with, endorsed by, or sponsored by Anthropic. \"Claude\" and \"Claude Code\" are trademarks of Anthropic.",
     "targets": [
       "nsis",
       "dmg",
@@ -32,7 +36,7 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/clawed-hook"
+      "binaries/islet-hook"
     ]
   }
 }

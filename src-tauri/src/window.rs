@@ -24,14 +24,16 @@ const PILL_W: f64 = 260.0;
 const PILL_H: f64 = 34.0;
 const TOP_GAP: f64 = 6.0;
 const HOVER_POLL: Duration = Duration::from_millis(80);
+/// Hover polls between monitor layout checks (about 2 s).
+const MONITOR_CHECK_EVERY: u32 = 25;
 
 static CREATING: AtomicBool = AtomicBool::new(false);
 
-/// WebView2 flags. Tauri's defaults are kept; `CLAWED_WEBVIEW_ARGS` replaces
+/// WebView2 flags. Tauri's defaults are kept; `ISLET_WEBVIEW_ARGS` replaces
 /// the whole string (for memory experiments). All webviews must share them.
 #[cfg(windows)]
 fn browser_args() -> String {
-    std::env::var("CLAWED_WEBVIEW_ARGS").unwrap_or_else(|_| DEFAULT_BROWSER_ARGS.to_string())
+    std::env::var("ISLET_WEBVIEW_ARGS").unwrap_or_else(|_| DEFAULT_BROWSER_ARGS.to_string())
 }
 
 #[cfg(windows)]
@@ -75,7 +77,7 @@ fn create(app: &AppHandle) -> tauri::Result<()> {
     #[cfg(windows)]
     let builder = builder.additional_browser_args(&browser_args());
     let win = builder
-        .title("clawed")
+        .title("islet")
         .inner_size(w, h)
         .decorations(false)
         .transparent(true)
@@ -138,6 +140,36 @@ fn place(win: &WebviewWindow) -> tauri::Result<()> {
     win.set_position(PhysicalPosition::new(x.round() as i32, pos.y + crate::platform::top_offset(scale)))
 }
 
+/// Primary monitor geometry and scale. A change (monitor plugged or
+/// unplugged, primary switched, resolution or DPI scaling changed) means the
+/// island has to be placed again.
+type MonitorKey = (i32, i32, u32, u32, u64);
+
+fn monitor_key(win: &WebviewWindow) -> Option<MonitorKey> {
+    let mon = win.primary_monitor().ok().flatten().or_else(|| win.current_monitor().ok().flatten())?;
+    let (pos, size) = (mon.position(), mon.size());
+    Some((pos.x, pos.y, size.width, size.height, mon.scale_factor().to_bits()))
+}
+
+fn replace(app: &AppHandle) {
+    let place_now = |app: &AppHandle| {
+        if let Some(win) = get(app) {
+            log::info!("monitor layout changed; placing the island again");
+            if let Err(e) = place(&win) {
+                log::warn!("place island: {e}");
+            }
+        }
+    };
+    // macOS: NSScreen lookups in top_offset need the main thread.
+    #[cfg(target_os = "macos")]
+    {
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || place_now(&handle));
+    }
+    #[cfg(not(target_os = "macos"))]
+    place_now(app);
+}
+
 pub fn set_interactive(app: &AppHandle, interactive: bool) -> tauri::Result<()> {
     match get(app) {
         Some(win) => win.set_ignore_cursor_events(!interactive),
@@ -147,12 +179,23 @@ pub fn set_interactive(app: &AppHandle, interactive: bool) -> tauri::Result<()> 
 
 /// While the island exists, polls the cursor and emits `hover` on changes.
 /// The collapsed window ignores the mouse, so it cannot see hover itself.
+/// Every couple of seconds it also checks the monitor layout.
 fn spawn_hover_poll(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut inside = false;
+        let mut ticks = 0u32;
+        let mut screen = get(&app).and_then(|w| monitor_key(&w));
         loop {
             tokio::time::sleep(HOVER_POLL).await;
             let Some(win) = get(&app) else { return };
+            ticks = ticks.wrapping_add(1);
+            if ticks.is_multiple_of(MONITOR_CHECK_EVERY) {
+                // No monitor at all (lid closed, all displays off): wait.
+                if let Some(key) = monitor_key(&win).filter(|k| Some(*k) != screen) {
+                    screen = Some(key);
+                    replace(&app);
+                }
+            }
             let (Ok(cur), Ok(pos), Ok(size), Ok(scale)) =
                 (app.cursor_position(), win.outer_position(), win.outer_size(), win.scale_factor())
             else {
@@ -185,7 +228,7 @@ pub fn open_settings(app: &AppHandle) {
     #[cfg(windows)]
     let builder = builder.additional_browser_args(&browser_args());
     let built = builder
-        .title("clawed settings")
+        .title("islet settings")
         .inner_size(620.0, 720.0)
         .min_inner_size(480.0, 480.0)
         .center()

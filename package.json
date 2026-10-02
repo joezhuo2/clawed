@@ -1,9 +1,9 @@
 {
-  "name": "clawed",
+  "name": "islet",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
-  "repository": "github:joezhuo2/clawed",
+  "repository": "github:joezhuo2/islet",
   "type": "module",
   "scripts": {
     "dev": "vite --config ui/vite.config.ts",
