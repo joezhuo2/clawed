@@ -182,7 +182,13 @@ fn on_menu(app: &AppHandle, ev: MenuEvent) {
             let mut s = lock(&shared.settings);
             s.low_memory = !s.low_memory;
             let _ = s.save(&shared.settings_path);
+            let show = !s.low_memory;
+            drop(s);
             shared.touch_active();
+            if show {
+                shared.user_hidden.store(false, std::sync::atomic::Ordering::Relaxed);
+                crate::window::ensure(app);
+            }
         }
         "hooks" | "settings" => crate::window::open_settings(app),
         "update" => {

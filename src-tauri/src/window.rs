@@ -66,8 +66,9 @@ pub fn ensure(app: &AppHandle) {
 fn finish_create(app: &AppHandle) {
     let result = create(app);
     CREATING.store(false, Ordering::Release);
-    if let Err(e) = result {
-        log::error!("island window: {e}");
+    match result {
+        Ok(()) => app.state::<Arc<Shared>>().user_hidden.store(false, Ordering::Relaxed),
+        Err(e) => log::error!("island window: {e}"),
     }
 }
 
@@ -117,7 +118,10 @@ fn finish_destroy(app: &AppHandle) {
 
 pub fn toggle(app: &AppHandle) {
     match get(app) {
-        Some(_) => destroy(app),
+        Some(_) => {
+            app.state::<Arc<Shared>>().user_hidden.store(true, Ordering::Relaxed);
+            destroy(app)
+        }
         None => ensure(app),
     }
 }

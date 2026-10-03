@@ -62,7 +62,7 @@ Download `islet_<version>_x64-setup.exe` and `SHA256SUMS.txt` from
 hash before running it:
 
 ```powershell
-Get-FileHash .\islet_0.3.0_x64-setup.exe   # compare with SHA256SUMS.txt
+Get-FileHash .\islet_0.3.1_x64-setup.exe   # compare with SHA256SUMS.txt
 ```
 
 Releases aren't code signed yet, so SmartScreen shows "Windows protected your

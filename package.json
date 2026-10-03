@@ -1,7 +1,7 @@
 {
   "name": "islet",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "repository": "github:joezhuo2/islet",
   "type": "module",

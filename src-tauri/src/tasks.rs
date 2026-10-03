@@ -234,7 +234,8 @@ async fn usage(shared: Arc<Shared>) {
     }
 }
 
-/// Low memory mode: destroys the island after the idle delay.
+/// Low memory mode: destroys the island after the idle delay. With it off,
+/// the island is always shown, unless it was hidden from the tray.
 async fn idle_teardown(app: AppHandle, shared: Arc<Shared>) {
     loop {
         tokio::time::sleep(IDLE_CHECK).await;
@@ -242,12 +243,18 @@ async fn idle_teardown(app: AppHandle, shared: Arc<Shared>) {
             let s = lock(&shared.settings);
             (s.low_memory, s.idle_minutes.max(1).saturating_mul(60_000))
         };
+        if !low_memory {
+            if crate::window::get(&app).is_none() && !shared.user_hidden.load(Ordering::Relaxed) {
+                crate::window::ensure(&app);
+            }
+            continue;
+        }
         if shared.is_busy() {
             shared.touch_active();
             continue;
         }
         let idle_for = now_ms().saturating_sub(shared.last_active.load(Ordering::Relaxed));
-        if low_memory && idle_for >= idle_ms && crate::window::get(&app).is_some() {
+        if idle_for >= idle_ms && crate::window::get(&app).is_some() {
             log::info!("low memory mode: tearing down island after {}s idle", idle_for / 1000);
             crate::window::destroy(&app);
         }

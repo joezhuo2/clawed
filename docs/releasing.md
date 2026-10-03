@@ -14,7 +14,7 @@ The version lives in four places and must match:
 
 `npm run check:version` compares them. CI runs it on every push, and the
 release workflow runs it again with the tag (`node scripts/check-version.mjs
-v0.3.0`), so a tag that doesn't match the files fails the release.
+v0.3.1`), so a tag that doesn't match the files fails the release.
 
 ## Steps
 
@@ -37,8 +37,8 @@ v0.3.0`), so a tag that doesn't match the files fails the release.
 4. Commit, then tag and push:
 
    ```bash
-   git tag -a v0.3.0 -m "islet 0.3.0"
-   git push origin main v0.3.0
+   git tag -a v0.3.1 -m "islet 0.3.1"
+   git push origin main v0.3.1
    ```
 
 5. The `Release` workflow builds the NSIS installer and both dmgs, writes
@@ -212,6 +212,8 @@ app from a terminal with `ISLET_DEBUG=1` the first time
       logging out and in.
 - [ ] Low memory mode: the island is torn down after 3 minutes idle and comes
       back on the next hook event, with no crash (panel to window conversion).
+- [ ] Low memory mode off: the island shows at once, stays up while idle,
+      and shows on an autostarted launch.
 - [ ] Install / Uninstall hooks as in the Windows list; the hook is copied to
       `~/Library/Application Support/islet/bin`.
 - [ ] Unplug / switch the primary display and change its resolution while the

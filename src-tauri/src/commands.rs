@@ -59,7 +59,7 @@ pub fn get_settings(shared: Shr) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(shared: Shr, settings: Settings) -> Result<(), String> {
+pub fn save_settings(app: AppHandle, shared: Shr, settings: Settings) -> Result<(), String> {
     let mut cur = lock(&shared.settings);
     // Flags owned by the tray / first run are kept as they are.
     let merged = Settings {
@@ -70,8 +70,14 @@ pub fn save_settings(shared: Shr, settings: Settings) -> Result<(), String> {
         ..settings
     };
     merged.save(&shared.settings_path).map_err(|e| e.to_string())?;
+    let show = cur.low_memory && !merged.low_memory;
     *cur = merged;
     drop(cur);
+    // Turning low memory mode off shows the island right away.
+    if show {
+        shared.user_hidden.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::window::ensure(&app);
+    }
     shared.mark_dirty();
     Ok(())
 }

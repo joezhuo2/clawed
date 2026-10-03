@@ -129,11 +129,12 @@ pub fn run() {
             let hooks_installed = installer::read_settings(&installer::claude_settings_path())
                 .map(|v| installer::is_installed(&v))
                 .unwrap_or(false);
-            if !autostarted {
+            let low_memory = lock(&shared.settings).low_memory;
+            if !autostarted || !low_memory {
                 window::ensure(&handle);
-                if !hooks_installed {
-                    window::open_settings(&handle);
-                }
+            }
+            if !autostarted && !hooks_installed {
+                window::open_settings(&handle);
             }
             shared.mark_dirty();
             Ok(())

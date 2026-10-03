@@ -31,6 +31,9 @@ pub struct Shared {
     /// Last time any session was active or an approval was pending.
     pub last_active: AtomicU64,
     pub autostarted: AtomicBool,
+    /// The island was hidden from the tray. Keeps it hidden when low memory
+    /// mode is off, until something shows it again.
+    pub user_hidden: AtomicBool,
     /// Island is expanded: system meters are sampled only then.
     pub expanded: AtomicBool,
     pub expanded_changed: Notify,

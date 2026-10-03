@@ -16,7 +16,7 @@ Development and testing happen on Windows. macOS code is verified by `cargo clip
 | Approval timeout | 60 s in the hook; settings `timeout` 65 s |
 | Usage source | Account usage endpoint (`/api/oauth/usage`, Claude Code's OAuth token), Claude Code status line JSON (`rate_limits.*`, `context_window.*`), local JSONL estimate until the first status line arrives or when it goes stale |
 | Launch at login | On by default, toggle in tray menu |
-| Low memory mode | On by default, toggle in tray menu. Island window destroyed after 3 min with no Working/WaitingInput/AwaitingApproval session |
+| Low memory mode | On by default, toggle in tray menu. Island window destroyed after 3 min with no Working/WaitingInput/AwaitingApproval session. Off: the island is always shown (recreated within 30 s if missing, also on autostarted launches) unless hidden from the tray |
 | Collapsed step bar | Most recently active working session |
 | Updates | No in-app updater. Daily check of GitHub `releases/latest`; tray item links to the release page (opt-out setting) |
 
@@ -120,7 +120,7 @@ Emission: `sessions-updated` with the full (small) session list, coalesced to at
 - macOS placement: top offset is the primary screen's top inset, `max(frame.maxY - visibleFrame.maxY, safeAreaInsets.top)`. That is the menu bar height, which on notched MacBooks equals the notch height, so the pill hangs directly under the notch; with an auto-hiding menu bar the notch inset still applies. Drawing inside the notch is out of scope (the pill content would sit behind the camera housing).
 - Click-through while collapsed (`set_ignore_cursor_events(true)`). A 60 ms cursor poll (only while the window exists) checks the pill rect and emits `hover` enter/leave; while expanded, click-through is off.
 - Native window resized to expanded bounds before the expand animation and shrunk after the collapse animation (frontend calls `set_island_size` when the transition ends).
-- Low memory: window destroyed after 3 min of no active session and no pending approval; recreated on the next hook event.
+- Low memory: window destroyed after 3 min of no active session and no pending approval; recreated on the next hook event. With low memory mode off the island stays up: it is created at launch (autostarted too), right away when the mode is switched off, and by the 30 s idle check if it is ever missing. Hiding it from the tray holds until something shows it again (tray, hook event, second launch).
 
 ### Tray
 `TrayIconBuilder`, template glyph (rounded pill) with idle / working / approval variants. Menu, rebuilt only on state or usage change:
